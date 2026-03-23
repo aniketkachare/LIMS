@@ -1,16 +1,14 @@
-# LIMS — Laboratory Information System Management
+# LIMS - Laboratory Information System Management
 
-Production-ready Node.js + Express + MSSQL + EJS application for HLL Lifecare Laboratory.
+Node.js + Express + MSSQL + EJS application for laboratory registration, collection, accession, result entry, billing, barcode printing, validation, search, and reports.
 
----
+## Quick Start
 
-## 🚀 Quick Start
-
-1. Clone repository, then:
+1. Install dependencies:
    ```bash
    npm install
    ```
-2. Create `.env` in project root with:
+2. Create `.env` in the project root:
    ```env
    PORT=5005
    SECRET_KEY=your-strong-secret
@@ -20,80 +18,61 @@ Production-ready Node.js + Express + MSSQL + EJS application for HLL Lifecare La
    DB_PASSWORD=your-password
    NODE_ENV=development
    ```
-3. Run in development:
+3. Run the app:
    ```bash
    npm run dev
    ```
-   Production:
+   Or:
    ```bash
    npm start
    ```
 
-> ⚠️ For production: use a persistent session store (Redis/Mongo) instead of default memory store.
+## Current Workflow
 
----
+1. Registration
+   Save patient, visit, billing, files, and selected tests/profiles.
+2. Collection
+   Collected samples move forward from the collection queue.
+3. Accession
+   Accepted accession cases move into Result Entry.
+4. Result Entry
+   Lab users save manual results.
+   Doctor authorization sends cases to Reports.
+5. Reports
+   Authorized cases appear in the report list for preview/print.
+6. Search
+   Search patients, reopen invoice, print invoice, and view pending amount.
 
-## 📁 Project Structure
+## Main Features
 
-```
-├── app.js
-├── .env
-├── package.json
-├── public/
-│   ├── css/main.css
-│   └── js/main.js
-├── views/
-│   ├── login.ejs
-│   ├── register.ejs
-│   ├── nextPage.ejs
-│   ├── dashboard.ejs
-│   ├── collection.ejs
-│   ├── Accession.ejs
-│   ├── Barcodeprinting.ejs
-│   ├── result.ejs
-│   ├── validation.ejs
-│   ├── Search.ejs
-│   ├── report-list.ejs
-│   ├── error.ejs
-│   ├── partials/
-│   │   └── sidebar.ejs
-│   └── templates/
-│       └── template1.ejs
-└── uploads/ (TRF/history files + header/footer images)
-```
+- Two-step registration flow with patient + billing details
+- Invoice generation and invoice reprint from Search
+- Search page defaults to today's patients
+- Collection and Accession queues with status updates
+- Barcode printing page with today's records by default
+- Manual Result Entry screen for accession-approved patients
+- Separate `Save Result` and `Authorized By Doctor` actions
+- Reports page for authorized results
+- Validation page
+- Dashboard summary
+- Collapsible hover-expand sidebar
+- Console error logging on key operational routes
 
----
-
-## 🔧 Middleware & Core Config
-
-- `express-session` (session cookie config in `app.js`)
-- Body parsing: built-ins (`express.urlencoded`, `express.json`)
-- Static: `/public`, `/uploads`, `/templates`
-- Authentication: `requireAuth` checks `req.session.user`
-- DB: `mssql` config uses `.env` variables
-
----
-
-## 🧾 Endpoints
+## Important Routes
 
 ### Authentication
-- `GET /` : login page
-- `POST /login` : username/password
-- `POST /logout` : end session
+- `GET /`
+- `POST /login`
+- `POST /logout`
 
-### Registration Flow
-- `GET /register` : form + salutations
-- `POST /register` : store step 1 to session; files upload
-- `GET /nextPage` : step 2 summary
-- `POST /submit` : final save (transactional)
+### Registration and Billing
+- `GET /register`
+- `POST /register`
+- `GET /nextPage`
+- `POST /submit`
+- `GET /invoice/:visitCode`
 
-Validation in `/submit`:
-- `age`: int 0..150
-- `grossAmount`, `visitingCharges`, `discountAmount`, `paidAmount`: >= 0
-- `discount <= gross + visiting`
-- `paid <= net`
-
-### Autocomplete + support
+### Lookup and Support APIs
 - `GET /generateVisitCode`
 - `GET /suggestPatients`
 - `GET /suggest-lab-names`
@@ -105,64 +84,97 @@ Validation in `/submit`:
 - `GET /validate-refered`
 - `GET /validate-doctor`
 
-### Collection/Accession/Barcode
+### Operations
 - `GET /collection`
-- `GET /Accession`
-- `GET /Barcodeprinting`
 - `POST /update-action`
 - `POST /update-bulk-action`
+- `GET /Accession`
 - `POST /update-accession-action`
 - `POST /update-accession-bulk-action`
-- `POST /preview-barcode` (PDF)
-- `GET /Barcodeprinting/print/:visitCode` (PDF)
+- `GET /Barcodeprinting`
+- `POST /preview-barcode`
+- `GET /Barcodeprinting/print/:visitCode`
 
-### Search / Result / Validation
+### Search, Result, Validation
 - `GET /Search`
 - `GET /result`
 - `GET /result/details/:visitCode`
-- `GET /validation`
 - `POST /api/save-result-patient`
 - `POST /api/update-testwise-action`
+- `GET /validation`
 
 ### Reports
 - `GET /reports`
 - `GET /reports/data`
-- `GET /reports/preview/:visitCode` (Puppeteer PDF)
-- `GET /reports/download/:visitCode` (Puppeteer PDF)
+- `GET /reports/preview/:visitCode`
+- `GET /reports/download/:visitCode`
 
 ### Dashboard
 - `GET /dashboard`
 
----
+## Project Structure
 
-## ☑️ Security Notes
+```text
+app.js
+README.md
+document.md
+public/
+  css/main.css
+  js/main.js
+views/
+  partials/sidebar.ejs
+  login.ejs
+  register.ejs
+  nextPage.ejs
+  dashboard.ejs
+  collection.ejs
+  Accession.ejs
+  Barcodeprinting.ejs
+  result.ejs
+  validation.ejs
+  Search.ejs
+  report-list.ejs
+  invoice.ejs
+  error.ejs
+uploads/
+```
 
-- Auth enforced on most routes with `requireAuth`
-- Upload file types restricted to `image/jpeg`, `image/png`, `application/pdf`
-- Session cookie `httpOnly` (and `secure` should be `true` in HTTPS)
-- Use hashed passwords (`bcrypt`) rather than plain comparison in `POST /login`
-- Add CSRF (`csurf`) and rate limiting in production
+## Database Notes
 
----
+- SQL Server is accessed through `mssql`
+- Stored procedures drive most operational pages
+- Current code is aligned to schema names like:
+  - `Visit`
+  - `Visit_patient`
+  - `Visit_Trans`
+- Current billing columns used from `Visit` include:
+  - `Gross`
+  - `Net`
+  - `AmountPaid`
+  - `BalanceAmt`
 
-## 🗂️ Requirements
+## Current UI Notes
 
-- `uploads/header.jpg`, `uploads/footer.jpg` for report generation
-- Stored procedures used in `app.js` (ensure they exist and match parameter contract)
+- Sidebar is collapsed by default on desktop and expands on hover
+- Search and Barcode pages default to today's date
+- Invoice layout is plain black-and-white and print-friendly
+- Result Entry is designed for manual parameter entry
 
----
+## Production Notes
 
-## 🛠️ Recommended improvements
+- Replace in-memory session storage with Redis or another persistent store
+- Use hashed passwords instead of plain-text comparison
+- Add CSRF protection and rate limiting
+- Review and standardize stored procedure contracts
 
-1. switch session to persistent store (Redis/Mongo)
-2. use `bcrypt` for password hashing + compare
-3. direct DB pool reuse for reduced overhead
-4. centralize request validation with `express-validator`
-5. rollback file uploads on errors
-6. fix case-sensitivity for route names (`/Accession` vs `/accession`)
+## Verification
 
----
+Recent code updates were checked with:
 
-## 📌 Notes
+```bash
+node --check app.js
+```
 
-This `README` is aligned with the current `app.js` code in this repository.
+## Notes
+
+This README reflects the current application behavior and recent workflow updates in this repository.

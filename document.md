@@ -1,153 +1,307 @@
-# LIMS Lab System Documentation
+# LIMS System Documentation
 
-## 1. Project Overview
+## 1. Overview
 
-- Repository root: `app.js`, `views/`, `public/`, `uploads/`
-- Engine: Express + EJS
-- DB: SQL Server via `mssql`
-- File upload: `multer`
-- PDF: `pdfkit`, `bwip-js`, `puppeteer` + HTML template
-- Images: `sharp`
+This project is a laboratory workflow application built with:
 
-## 2. Environment
+- Node.js
+- Express
+- EJS
+- SQL Server via `mssql`
+- `multer` for uploads
+- `pdfkit`, `puppeteer`, and `bwip-js` for print output
 
-Required `.env` variables:
-- `PORT` (default 5005)
+The system covers:
+
+- patient registration
+- billing and invoice generation
+- collection and accession workflow
+- barcode printing
+- manual result entry
+- doctor authorization
+- report generation
+- validation
+- patient search and invoice reprint
+
+## 2. Environment Configuration
+
+Required `.env` values:
+
+- `PORT`
 - `SECRET_KEY`
-- `DB_USER`
-- `DB_PASSWORD`
 - `DB_SERVER`
 - `DB_DATABASE`
-- `NODE_ENV` (optional)
+- `DB_USER`
+- `DB_PASSWORD`
+- `NODE_ENV`
 
-NPM commands:
-- `npm install`
-- `npm start`
-- `npm run dev` (nodemon)
-- `npm run prod`
+Typical startup:
 
-## 3. Middleware
+```bash
+npm install
+npm run dev
+```
 
-- `express-session` with in-memory store (development only)
-- `bodyParser.urlencoded`, `express.urlencoded`, `express.json`
-- Static directories:
-  - `/public`
-  - `/uploads`
-  - `/templates` (from `views/templates`)
+## 3. Application Structure
 
-- Auth helper: `requireAuth(req,res,next)` applies to protected routes.
+Core files:
 
-## 4. DB config
+- `app.js` - main server, routes, SQL integration, helper logic
+- `public/css/main.css` - main UI styling
+- `public/js/main.js` - shared client-side helpers
+- `views/partials/sidebar.ejs` - left navigation
 
-- `config` object in `app.js` loads from `.env`.
-- `mssql.connect(config)` called at startup, and repeated in route handlers.
+Primary views:
 
-## 5. Helper functions
+- `views/login.ejs`
+- `views/dashboard.ejs`
+- `views/register.ejs`
+- `views/nextPage.ejs`
+- `views/collection.ejs`
+- `views/Accession.ejs`
+- `views/Barcodeprinting.ejs`
+- `views/result.ejs`
+- `views/validation.ejs`
+- `views/Search.ejs`
+- `views/report-list.ejs`
+- `views/invoice.ejs`
+- `views/error.ejs`
 
-- `formatReportDate(dateVal)` - formats date+time readable.
-- `loadImageBase64(filePath)` - embed header/footer encoded in report PDF.
-- `mapReport(rows)` - map patient test rows to report view model.
-- `parseDDMMYYYY(str)` - convert `DD-MM-YYYY` to `YYYY-MM-DD`.
+## 4. Current Workflow
 
-## 6. Route summary
+### Registration
 
-### Authentication
-- `GET /` login page
-- `POST /login` user check (plain-text currently)
-- `POST /logout` session destroy
+The registration flow is split across:
 
-### Registration & Visit
-- `GET /register` salutations
-- `POST /register` start session data + upload (trf/history)
-- `GET /nextPage` show saved registerData
-- `GET /generateVisitCode` returns code based on `Mst_Centers`
+- `GET /register`
+- `POST /register`
+- `GET /nextPage`
+- `POST /submit`
 
-### Submit (final registration)
-- `POST /submit` (transaction)
-  - Insert patient (`InsertVisitPatient`)
-  - Insert visit (`InsertVisit`)
-  - Insert test/profile walk
-  - Insert address (`InsertVisitAddress`)
-  - Process uploads (shrink image, store path)
-  - Insert TRF/history paths (stored procs)
-  - commit/rollback
-  - validation:
-    - `age` number 0..150
-    - `grossAmount`, `visitingCharges`, `discountAmount`, `paidAmount` non-negative
-    - `discount <= gross + visiting`
-    - `paid <= net`
+Current behavior:
 
-### Autocomplete + validation APIs
-- `GET /suggestPatients`
-- `GET /suggest-lab-names`
-- `GET /suggest-refer-names`
-- `GET /suggest-doctor-names`
-- `GET /suggest-tests-profiles`
-- `GET /fetch-payment-modes`
-- `GET /validate-center`
-- `GET /validate-refered`
-- `GET /validate-doctor`
+- patient data is captured first
+- test/profile and billing data is captured next
+- center, referred by, and doctor selections are validated
+- files such as TRF/history can be uploaded
+- final submission writes patient, visit, address, visit tests, and related records
 
-### Collection, Accession, Barcode
-- `GET /collection`, `/Accession`, `/Barcodeprinting` (date-filter optional)
-- `POST /update-action`, `/update-bulk-action`
-- `POST /update-accession-action`, `/update-accession-bulk-action`
-- `POST /preview-barcode` (PDF output)
-- `GET /Barcodeprinting/print/:visitCode` (PDF output)
+After successful registration:
 
-### Search & results
-- `GET /Search`
+- invoice actions are available
+- the visit becomes visible in downstream workflow pages
+
+### Collection
+
+Route:
+
+- `GET /collection`
+
+Actions:
+
+- `POST /update-action`
+- `POST /update-bulk-action`
+
+Current behavior:
+
+- Collection defaults to a recent date range when filters are empty
+- route maps SQL `ActionName` to display-friendly status values
+- collected samples move to the next workflow step
+
+### Accession
+
+Route:
+
+- `GET /Accession`
+
+Actions:
+
+- `POST /update-accession-action`
+- `POST /update-accession-bulk-action`
+
+Current behavior:
+
+- accession page loads recent collected records by default
+- accepted accession cases become available in Result Entry
+
+### Barcode Printing
+
+Route:
+
+- `GET /Barcodeprinting`
+
+Actions:
+
+- `POST /preview-barcode`
+- `GET /Barcodeprinting/print/:visitCode`
+
+Current behavior:
+
+- barcode page defaults to today's records
+- date filtering uses the same date-correction approach as Search
+- barcode preview/print generates PDF output
+
+### Result Entry
+
+Routes:
+
 - `GET /result`
 - `GET /result/details/:visitCode`
-- `GET /validation`
 - `POST /api/save-result-patient`
 - `POST /api/update-testwise-action`
 
-### Reporting
+Current behavior:
+
+- accepted accession patients appear in Result Entry
+- detailed parameter rows load for manual entry
+- when stored procedure summary data is missing, the route falls back to direct visit and patient queries
+- result entry supports manual observed value entry
+
+Two actions are supported:
+
+- `Save Result`
+  - intended for normal lab users
+  - saves entered result values only
+- `Authorized By Doctor`
+  - saves current values
+  - updates test status so the case appears in Reports
+
+### Reports
+
+Routes:
+
 - `GET /reports`
 - `GET /reports/data`
-- `GET /reports/preview/:visitCode` (puppeteer PDF)
-- `GET /reports/download/:visitCode` (puppeteer PDF download)
+- `GET /reports/preview/:visitCode`
+- `GET /reports/download/:visitCode`
 
-### Dashboard
-- `GET /dashboard` queries counts and renders stats.
+Current behavior:
 
-### 404 and error handlers
-- 404 middleware
-- global error middleware returns `error.ejs`
+- reports page defaults to a recent date range
+- only authorized/report-ready cases should appear
+- date parsing is aligned to `DD-MM-YYYY`
 
-## 7. File Outline
+### Search
 
-- `app.js` full app
-- `views/*.ejs`: UI pages
-- `views/partials/sidebar.ejs`: nav and user block
-- `public/css/main.css`, `public/js/main.js` (client assets)
+Route:
 
-## 8. Known issues & improvements
+- `GET /Search`
 
-- Passwords stored/checked plain-text.
-- Session store in-memory (not production). Use Redis/Mongo.
-- Missing CSRF protection (`csurf`).
-- SQL parameter reuse from raw strings may still have risk; validate lengths.
-- No cleanup for file uploads on transaction rollback.
-- `bodyParser` usage double with express built-in.
-- Lowercase route names would avoid case-sensitive mismatch.
+Current behavior:
 
-## 9. Recommended next tasks
+- Search defaults to today's patients
+- local date filtering is used after widening the SQL range to avoid missing same-day records because of DB timing/date issues
+- patient cards can show pending amount and payment status
+- invoice re-open and re-print are available from Search
 
-1. Enable hashed password + bcrypt.
-2. Add `express-validator` for all user inputs.
-3. Move DB pool to a shared module.
-4. Introduce `helmet`, `compression`, `rate-limit`.
-5. Add a tests folder with API coverage.
+### Invoice
 
-## 10. How to run
+Route:
 
-1. `npm install`
-2. Create `.env` with DB and secret.
-3. `npm run dev`
-4. Open `http://localhost:5005`
+- `GET /invoice/:visitCode`
 
----
+Current behavior:
 
-> Note: This file is generated from current `app.js` routes and processing. Validate against actual SQL stored procedures (`InsertVisitPatient`, `InsertVisit`, etc.) for param definitions.
+- invoice is print-friendly
+- invoice is black-and-white and one-page oriented
+- patient and item details are populated from actual visit, patient, and visit transaction data
+- invoice can be opened after registration and again from Search
+
+## 5. Database Notes
+
+The current code is aligned to SQL objects such as:
+
+- `Visit`
+- `Visit_patient`
+- `Visit_Trans`
+
+Important known billing columns in `Visit`:
+
+- `Gross`
+- `Net`
+- `AmountPaid`
+- `DiscountAmount`
+- `VisitingCharges`
+- `RefundAmount`
+- `BalanceAmt`
+
+Current workflow depends heavily on stored procedures, including examples like:
+
+- `GetCollection`
+- `GetAccession`
+- `GetSearch`
+- `GetBarcodePrinting`
+- `GetBarcodePrinting_ByVisitCode`
+- `GenerateBarcode`
+- `GetPatientAndResultDetails`
+- `Getreportforprint`
+- `UpdateTestWiseAction`
+
+## 6. Date Handling Notes
+
+Several pages needed special handling because SQL-side date filtering did not always return expected same-day results.
+
+Current pattern used on key routes:
+
+- default date values are set in the app
+- SQL query range may be widened slightly
+- returned records are filtered again in Node.js using formatted `DD-MM-YYYY` values
+
+This logic is especially relevant on:
+
+- Search
+- Barcode Printing
+
+## 7. Logging and Error Handling
+
+Current code includes console logging for several operational failures, including pages like:
+
+- Search
+- Invoice
+- Barcode
+- Result details
+
+The app also has:
+
+- 404 handling
+- error page rendering through `error.ejs`
+
+## 8. UI Notes
+
+Recent UI updates include:
+
+- collapsible sidebar that stays icon-only until hover on desktop
+- full sidebar behavior preserved on mobile
+- invoice simplified to black-and-white print layout
+- Result Entry redesigned for manual parameter input
+- Search and Barcode pages use date fields with default values
+
+## 9. Security and Deployment Recommendations
+
+Recommended improvements still pending:
+
+- move session storage to a persistent store
+- hash passwords with `bcrypt`
+- add CSRF protection
+- add rate limiting
+- centralize validation
+- standardize route naming consistency
+
+## 10. Verification
+
+Basic server syntax check:
+
+```bash
+node --check app.js
+```
+
+## 11. Summary
+
+This documentation reflects the current codebase after recent updates to:
+
+- invoice and search behavior
+- collection to accession to result workflow
+- manual result entry and doctor authorization
+- reports visibility
+- barcode default filtering
+- sidebar interaction
