@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Registration — LIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .age-type-btns { display: flex; gap: 6px; }
+    .age-type-btn {
+      flex: 1; padding: 8px; text-align: center;
+      border: 1.5px solid var(--gray-200); border-radius: var(--radius-md);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      background: var(--white); color: var(--gray-600);
+      transition: all var(--transition-fast);
+    }
+    .age-type-btn.selected { border-color: var(--blue-500); background: var(--blue-50); color: var(--blue-700); }
+    .gender-btns { display: flex; gap: 6px; }
+    .gender-btn {
+      flex: 1; padding: 9px 12px; text-align: center;
+      border: 1.5px solid var(--gray-200); border-radius: var(--radius-md);
+      font-size: 0.845rem; font-weight: 600; cursor: pointer;
+      background: var(--white); color: var(--gray-600);
+      transition: all var(--transition-fast);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .gender-btn.selected { border-color: var(--blue-500); background: var(--blue-50); color: var(--blue-700); }
+    .amount-summary {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+    .amount-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.845rem; }
+    .amount-row:not(:last-child) { border-bottom: 1px solid var(--gray-100); }
+    .amount-label { color: var(--gray-500); }
+    .amount-value { font-weight: 600; color: var(--gray-800); font-family: var(--font-mono); }
+    .amount-row.total .amount-label { font-weight: 700; color: var(--gray-800); }
+    .amount-row.total .amount-value { color: var(--blue-700); font-size: 1rem; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <%- include('partials/sidebar', { activePage: 'register', user: user }) %>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+      <div class="topbar-title">New Patient Registration</div>
+      <div class="topbar-right">
+        <div class="topbar-date"><i class="fas fa-calendar-alt"></i><span id="currentDate"></span></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <% if (queryParams && queryParams.success) { %>
+      <div class="alert alert-success" data-auto-dismiss>
+        <i class="fas fa-check-circle"></i>
+        <div>Patient registered successfully!
+          <% if (queryParams.patientID) { %><strong> Patient ID: <%= queryParams.patientID %></strong><% } %>
+          <% if (queryParams.visitID) { %> | <strong>Visit ID: <%= queryParams.visitID %></strong><% } %>
+        </div>
+      </div>
+      <% } %>
+
+<div class="step-wizard">
+  <div class="step active">
+    <div class="step-circle">1</div>
+    <span class="step-label">Patient Info</span>
+  </div>
+  <div class="step-connector"></div>
+  <div class="step">
+    <div class="step-circle">2</div>
+    <span class="step-label">Tests &amp; Billing</span>
+  </div>
+  <div class="step-connector"></div>
+  <div class="step">
+    <div class="step-circle">3</div>
+    <span class="step-label">Confirm</span>
+  </div>
+</div>
+
+      <form action="/register" method="POST" enctype="multipart/form-data" id="registerForm">
+
+        <!-- Patient Details -->
+        <div class="card mb-20">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-user" style="color:#3b82f6;margin-right:6px;"></i>Patient Details</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-grid form-grid-4">
+
+              <div class="form-group">
+                <label class="form-label">Salutation <span class="required">*</span></label>
+                <select name="salutation" class="form-control" required>
+                <option value="">Select</option>
+                <% salutations.forEach(function(s) { %>
+                <option value="<%= s.value %>"><%= s.label %></option>
+                <% }); %>
+              </select>
+              </div>
+              <div class="form-group" style="grid-column:span 3;">
+                <label class="form-label">Patient Full Name <span class="required">*</span></label>
+                <input type="text" name="patientName" class="form-control" placeholder="Full name" required />
+              </div>
+
+              <div class="form-group" style="grid-column:span 2;">
+                <label class="form-label">Gender <span class="required">*</span></label>
+                <div class="gender-btns">
+                  <button type="button" class="gender-btn" data-val="Male" onclick="selectGender(this)"><i class="fas fa-mars"></i> Male</button>
+                  <button type="button" class="gender-btn" data-val="Female" onclick="selectGender(this)"><i class="fas fa-venus"></i> Female</button>
+                  <button type="button" class="gender-btn" data-val="Other" onclick="selectGender(this)"><i class="fas fa-genderless"></i> Other</button>
+                </div>
+                <input type="hidden" name="gender" id="genderInput" />
+              </div>
+
+              <div class="form-group" style="position:relative;">
+  <label class="form-label">Date of Birth</label>
+  <div style="position:relative;">
+    <input type="text" id="dobDisplay" class="form-control" placeholder="DD-MM-YYYY"
+      readonly onclick="toggleCalendar()"
+      style="cursor:pointer;background:white;" autocomplete="off" />
+    <i class="fas fa-calendar-alt" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--gray-400);pointer-events:none;"></i>
+    <input type="hidden" name="dob" id="dobInput" />
+  </div>
+
+  <!-- Custom Calendar -->
+  <div id="dobCalendar" style="display:none;position:absolute;z-index:999;background:white;border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-xl);width:300px;padding:16px;margin-top:4px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <button type="button" onclick="changeMonth(-1)" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--gray-600);padding:4px 8px;">&#8249;</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <select id="calMonth" onchange="renderCalendar()" style="border:1px solid var(--gray-200);border-radius:6px;padding:4px 8px;font-size:0.845rem;cursor:pointer;outline:none;">
+          <option value="0">January</option><option value="1">February</option>
+          <option value="2">March</option><option value="3">April</option>
+          <option value="4">May</option><option value="5">June</option>
+          <option value="6">July</option><option value="7">August</option>
+          <option value="8">September</option><option value="9">October</option>
+          <option value="10">November</option><option value="11">December</option>
+        </select>
+        <input type="number" id="calYear" onchange="renderCalendar()" oninput="renderCalendar()"
+          style="border:1px solid var(--gray-200);border-radius:6px;padding:4px 8px;font-size:0.845rem;width:72px;outline:none;font-family:var(--font-mono);font-weight:700;"
+          min="1900" max="2100" />
+      </div>
+      <button type="button" onclick="changeMonth(1)" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--gray-600);padding:4px 8px;">&#8250;</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px;">
+      <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Su</div>
+      <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Mo</div>
+      <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Tu</div>
+      <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">We</div>
+      <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Th</div>
+      <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Fr</div>
+      <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Sa</div>
+    </div>
+    <div id="calDays" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
+    <div style="margin-top:10px;display:flex;justify-content:space-between;">
+      <button type="button" onclick="selectToday()" style="font-size:0.75rem;color:var(--blue-600);background:none;border:none;cursor:pointer;font-weight:600;">Today</button>
+      <button type="button" onclick="clearDob()" style="font-size:0.75rem;color:var(--gray-400);background:none;border:none;cursor:pointer;">Clear</button>
+    </div>
+  </div>
+</div>
+
+              <div class="form-group">
+                <label class="form-label">Age <span class="required">*</span></label>
+                <input type="number" name="age" id="ageInput" class="form-control" placeholder="Age" min="0" max="150" required />
+              </div>
+
+              <div class="form-group" style="grid-column:span 2;">
+                <label class="form-label">Age Type</label>
+                <div class="age-type-btns">
+                  <button type="button" class="age-type-btn selected" data-val="Years" onclick="selectAgeType(this)">Years</button>
+                  <button type="button" class="age-type-btn" data-val="Months" onclick="selectAgeType(this)">Months</button>
+                  <button type="button" class="age-type-btn" data-val="Days" onclick="selectAgeType(this)">Days</button>
+                </div>
+                <input type="hidden" name="ageType" id="ageTypeInput" value="Years" />
+              </div>
+
+            </div>
+
+            <div class="section-divider">Contact</div>
+            <div class="form-grid form-grid-3">
+              <div class="form-group">
+                <label class="form-label">Mobile</label>
+                <div class="input-group">
+                  <select name="countryCode" class="form-control" style="width:90px;flex:none;border-radius:var(--radius-md) 0 0 var(--radius-md);">
+                    <option value="+91">+91</option>
+                    <option value="+1">+1</option>
+                    <option value="+44">+44</option>
+                  </select>
+                  <input type="tel" name="phone" id="phoneInput" class="form-control"
+  style="border-radius:0 var(--radius-md) var(--radius-md) 0;"
+  placeholder="Mobile number"
+  maxlength="10"
+  pattern="[0-9]{10}"
+  oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)"
+  onblur="validatePhone(this)" />
+<span id="phoneError" style="display:none;color:var(--red-500);font-size:0.72rem;margin-top:3px;">Please enter a valid 10-digit mobile number.</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control" placeholder="patient@example.com" />
+              </div>
+            </div>
+
+            <div class="section-divider">Address</div>
+            <div class="form-grid form-grid-4">
+              <div class="form-group" style="grid-column:span 4;">
+                <label class="form-label">Address</label>
+                <input type="text" name="address" class="form-control" placeholder="Street address" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">City</label>
+                <input type="text" name="city" class="form-control" placeholder="City" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">District</label>
+                <input type="text" name="district" class="form-control" placeholder="District" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">State</label>
+                <input type="text" name="state" class="form-control" placeholder="State" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">PIN Code</label>
+                <input type="text" name="pin" class="form-control" placeholder="PIN" maxlength="6" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Country</label>
+                <input type="text" name="country" class="form-control" value="India" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Nationality</label>
+                <input type="text" name="nationality" class="form-control" value="Indian" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visit Details -->
+        <div class="card mb-20">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-hospital" style="color:#8b5cf6;margin-right:6px;"></i>Visit Details</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-grid form-grid-3">
+              <div class="form-group">
+                <label class="form-label">Visit No.</label>
+                <input type="text" name="visitNo" id="visitNo" class="form-control" readonly placeholder="Auto-generated" style="background:var(--gray-50);" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Registration Date & Time <span class="required">*</span></label>
+                <input type="datetime-local" name="registrationDateTime" id="regDateTime" class="form-control" required />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Center / Lab</label>
+                <div class="autocomplete-wrapper">
+                  <input type="text" id="centerInput" class="form-control" placeholder="Search center..." autocomplete="off" />
+                  <input type="hidden" name="centerId" id="centerIdInput" />
+                  <div class="autocomplete-dropdown" id="centerDropdown"></div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Referred By</label>
+                <div class="autocomplete-wrapper">
+                  <input type="text" id="referInput" class="form-control" placeholder="Search referral..." autocomplete="off" />
+                  <input type="hidden" name="referedId" id="referIdInput" />
+                  <div class="autocomplete-dropdown" id="referDropdown"></div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Doctor</label>
+                <div class="autocomplete-wrapper">
+                  <input type="text" id="doctorInput" class="form-control" placeholder="Search doctor..." autocomplete="off" />
+                  <input type="hidden" name="doctorId" id="doctorIdInput" />
+                  <div class="autocomplete-dropdown" id="doctorDropdown"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-divider">Tests &amp; Profiles</div>
+            <div class="form-group mb-16">
+              <label class="form-label">Search &amp; Add Tests / Profiles</label>
+              <div class="autocomplete-wrapper">
+                <input type="text" id="testSearchInput" class="form-control" placeholder="Type test name or code..." autocomplete="off" />
+                <div class="autocomplete-dropdown" id="testDropdown"></div>
+              </div>
+            </div>
+            <div class="form-group mb-8">
+              <label class="form-label">Selected Tests &amp; Profiles <span class="required">*</span></label>
+              <div class="tags-container" id="tagsContainer">
+                <span id="tagsPlaceholder" style="color:var(--gray-300);font-size:0.845rem;padding:2px 4px;">No tests added yet</span>
+              </div>
+              <input type="hidden" name="selectedTests" id="selectedTestsInput" />
+<input type="hidden" name="selectedProfiles" id="selectedProfilesInput" />
+<span id="testError" style="display:none;color:var(--red-500);font-size:0.72rem;margin-top:4px;">
+  <i class="fas fa-exclamation-circle"></i> At least one test or profile is required.
+</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="display:flex;justify-content:flex-end;gap:12px;margin-bottom:28px;">
+          <a href="/register" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Clear
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-arrow-right"></i> Continue to Billing
+          </button>
+        </div>
+
+      </form>
+    </main>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+  // Set default datetime
+  (function() {
+    var dt = document.getElementById('regDateTime');
+    if (dt) {
+      var now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      dt.value = now.toISOString().slice(0, 16);
+    }
+  })();
+
+  // Auto-generate visit code
+  fetch('/generateVisitCode')
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.visitCode) document.getElementById('visitNo').value = d.visitCode; })
+    .catch(function() {});
+
+  // DOB formatter
+// ── Custom Calendar ──────────────────────────────────────────
+var calSelected  = null;
+var calViewYear  = new Date().getFullYear();
+var calViewMonth = new Date().getMonth();
+
+function toggleCalendar() {
+  var cal = document.getElementById('dobCalendar');
+  if (cal.style.display === 'none') {
+    document.getElementById('calYear').value  = calViewYear;
+    document.getElementById('calMonth').value = calViewMonth;
+    renderCalendar();
+    cal.style.display = 'block';
+  } else {
+    cal.style.display = 'none';
+  }
+}
+
+function changeMonth(dir) {
+  calViewMonth += dir;
+  if (calViewMonth > 11) { calViewMonth = 0;  calViewYear++; }
+  if (calViewMonth < 0)  { calViewMonth = 11; calViewYear--; }
+  document.getElementById('calMonth').value = calViewMonth;
+  document.getElementById('calYear').value  = calViewYear;
+  renderCalendar();
+}
+
+function renderCalendar() {
+  calViewMonth = parseInt(document.getElementById('calMonth').value);
+  var yr = parseInt(document.getElementById('calYear').value);
+  if (!isNaN(yr) && yr >= 1900 && yr <= 2100) calViewYear = yr;
+
+  var firstDay    = new Date(calViewYear, calViewMonth, 1).getDay();
+  var daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+  var today       = new Date();
+  var html        = '';
+
+  for (var i = 0; i < firstDay; i++) html += '<div></div>';
+
+  for (var d = 1; d <= daysInMonth; d++) {
+    var isToday  = (d === today.getDate() && calViewMonth === today.getMonth() && calViewYear === today.getFullYear());
+    var isSel    = calSelected && (d === calSelected.d && calViewMonth === calSelected.m && calViewYear === calSelected.y);
+    var isFuture = new Date(calViewYear, calViewMonth, d) > today;
+
+    var style = 'text-align:center;padding:6px 2px;border-radius:6px;font-size:0.8rem;'
+      + 'cursor:' + (isFuture ? 'not-allowed' : 'pointer') + ';'
+      + (isSel    ? 'background:var(--blue-600);color:white;font-weight:700;'
+       : isToday  ? 'background:var(--blue-50);color:var(--blue-700);font-weight:700;'
+       : isFuture ? 'color:var(--gray-300);'
+       :            'color:var(--gray-700);');
+
+    html += '<div style="' + style + '"'
+      + (!isFuture ? ' onclick="selectDay(' + d + ')"' : '')
+      + '>' + d + '</div>';
+  }
+  document.getElementById('calDays').innerHTML = html;
+}
+
+function selectDay(d) {
+  calSelected = { d: d, m: calViewMonth, y: calViewYear };
+  var dd   = String(d).padStart(2, '0');
+  var mm   = String(calViewMonth + 1).padStart(2, '0');
+  var yyyy = calViewYear;
+
+  document.getElementById('dobDisplay').value = dd + '-' + mm + '-' + yyyy;
+  document.getElementById('dobInput').value   = dd + '-' + mm + '-' + yyyy;
+
+  // Auto-calculate age and set correct age type
+  var today     = new Date();
+  var birthDate = new Date(yyyy, calViewMonth, d);
+  var ageYears  = today.getFullYear() - yyyy;
+  var mDiff     = today.getMonth() - calViewMonth;
+  if (mDiff < 0 || (mDiff === 0 && today.getDate() < d)) ageYears--;
+
+  if (ageYears >= 1) {
+    // Age in Years
+    document.getElementById('ageInput').value  = ageYears;
+    document.getElementById('ageTypeInput').value = 'Years';
+    document.querySelectorAll('.age-type-btn').forEach(function(b) {
+      b.classList.toggle('selected', b.dataset.val === 'Years');
+    });
+
+  } else {
+    // Calculate months difference
+    var totalMonths = (today.getFullYear() - yyyy) * 12 + (today.getMonth() - calViewMonth);
+    if (today.getDate() < d) totalMonths--;
+
+    if (totalMonths >= 1) {
+      // Age in Months
+      document.getElementById('ageInput').value    = totalMonths;
+      document.getElementById('ageTypeInput').value = 'Months';
+      document.querySelectorAll('.age-type-btn').forEach(function(b) {
+        b.classList.toggle('selected', b.dataset.val === 'Months');
+      });
+
+    } else {
+      // Age in Days
+      var diffTime = today - birthDate;
+      var diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      document.getElementById('ageInput').value    = diffDays;
+      document.getElementById('ageTypeInput').value = 'Days';
+      document.querySelectorAll('.age-type-btn').forEach(function(b) {
+        b.classList.toggle('selected', b.dataset.val === 'Days');
+      });
+    }
+  }
+
+  renderCalendar();
+  document.getElementById('dobCalendar').style.display = 'none';
+}
+
+function selectToday() {
+  var t = new Date();
+  calViewYear  = t.getFullYear();
+  calViewMonth = t.getMonth();
+  document.getElementById('calMonth').value = calViewMonth;
+  document.getElementById('calYear').value  = calViewYear;
+  selectDay(t.getDate());
+}
+
+function clearDob() {
+  calSelected = null;
+  document.getElementById('dobDisplay').value = '';
+  document.getElementById('dobInput').value   = '';
+  document.getElementById('ageInput').value   = '';
+  document.getElementById('dobCalendar').style.display = 'none';
+}
+
+// Close calendar on outside click
+document.addEventListener('click', function(e) {
+  var cal = document.getElementById('dobCalendar');
+  var inp = document.getElementById('dobDisplay');
+  if (cal && !cal.contains(e.target) && e.target !== inp) {
+    cal.style.display = 'none';
+  }
+});
+// ─────────────────────────────────────────────────────────────
+
+  function selectGender(btn) {
+    document.querySelectorAll('.gender-btn').forEach(function(b) { b.classList.remove('selected'); });
+    btn.classList.add('selected');
+    document.getElementById('genderInput').value = btn.dataset.val;
+  }
+
+  function selectAgeType(btn) {
+    document.querySelectorAll('.age-type-btn').forEach(function(b) { b.classList.remove('selected'); });
+    btn.classList.add('selected');
+    document.getElementById('ageTypeInput').value = btn.dataset.val;
+  }
+
+  function calcAmounts() {
+    var gross    = parseFloat(document.getElementById('grossAmount').value)    || 0;
+    var visiting = parseFloat(document.getElementById('visitingCharges').value) || 0;
+    var discount = parseFloat(document.getElementById('discountAmount').value)  || 0;
+    var paid     = parseFloat(document.getElementById('paidAmount').value)      || 0;
+    var total   = gross + visiting;
+    var net     = Math.max(0, total - discount);
+    var balance = Math.max(0, net - paid);
+    function fmt(v) { return '₹ ' + v.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+    document.getElementById('displayTotal').textContent    = fmt(total);
+    document.getElementById('displayDiscount').textContent = '- ' + fmt(discount);
+    document.getElementById('displayNet').textContent      = fmt(net);
+    document.getElementById('displayBalance').textContent  = fmt(balance);
+    document.getElementById('displayBalance').style.color  = balance > 0 ? 'var(--amber-600)' : 'var(--green-600)';
+  }
+
+  // Tag system
+  var selectedTests    = {};
+  var selectedProfiles = {};
+
+  function updateHiddenInputs() {
+    document.getElementById('selectedTestsInput').value    = Object.keys(selectedTests).join(',');
+    document.getElementById('selectedProfilesInput').value = Object.keys(selectedProfiles).join(',');
+  }
+
+  function addTag(id, name, type) {
+    var map = type === 'test' ? selectedTests : selectedProfiles;
+    if (map[id]) return;
+    map[id] = { id: id, name: name, type: type };
+    updateHiddenInputs();
+    renderTags();
+    // ── Clear test error when tag added ──
+    var testErr = document.getElementById('testError');
+    if (testErr) testErr.style.display = 'none';
+    document.getElementById('tagsContainer').style.borderColor = '';
+    document.getElementById('tagsContainer').style.boxShadow   = '';
+  }
+
+  function removeTag(id, type) {
+    if (type === 'test') delete selectedTests[id];
+    else delete selectedProfiles[id];
+    updateHiddenInputs();
+    renderTags();
+  }
+
+  function renderTags() {
+    var container   = document.getElementById('tagsContainer');
+    var placeholder = document.getElementById('tagsPlaceholder');
+    var allTags     = Object.values(selectedTests).concat(Object.values(selectedProfiles));
+    placeholder.style.display = allTags.length ? 'none' : 'inline';
+    container.querySelectorAll('.tag').forEach(function(t) { t.remove(); });
+    allTags.forEach(function(item) {
+      var span = document.createElement('span');
+      span.className = 'tag' + (item.type === 'profile' ? ' tag-profile' : '');
+      span.innerHTML = item.name + ' <button type="button" class="tag-remove" onclick="removeTag(\'' + item.id + '\',\'' + item.type + '\')"><i class="fas fa-times"></i></button>';
+      container.appendChild(span);
+    });
+  }
+
+  // Test search autocomplete
+  var testInput    = document.getElementById('testSearchInput');
+  var testDropdown = document.getElementById('testDropdown');
+  var testTimer;
+  testInput.addEventListener('input', function() {
+    clearTimeout(testTimer);
+    var q = this.value.trim();
+    if (!q) { testDropdown.classList.remove('open'); return; }
+    testTimer = setTimeout(function() {
+      fetch('/suggest-tests-profiles?query=' + encodeURIComponent(q))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          testDropdown.innerHTML = '';
+          var items = (data.tests||[]).map(function(t){ return {id:t.TestID,   name:t.TestName,    type:'test'}; })
+                 .concat((data.profiles||[]).map(function(p){ return {id:p.ProfileID, name:p.ProfileName, type:'profile'}; }));
+          if (!items.length) { testDropdown.classList.remove('open'); return; }
+          items.forEach(function(item) {
+            var div = document.createElement('div');
+            div.className = 'autocomplete-item';
+            div.innerHTML = '<span>' + item.name + '</span><span class="autocomplete-badge">' + (item.type==='profile'?'Profile':'Test') + '</span>';
+            div.addEventListener('mousedown', function(e) {
+              e.preventDefault();
+              addTag(item.id, item.name, item.type);
+              testInput.value = '';
+              testDropdown.classList.remove('open');
+            });
+            testDropdown.appendChild(div);
+          });
+          testDropdown.classList.add('open');
+        }).catch(function(){});
+    }, 250);
+  });
+  testInput.addEventListener('blur', function() { setTimeout(function(){ testDropdown.classList.remove('open'); }, 150); });
+
+  // Generic autocomplete
+  function setupAC(inputId, dropdownId, url, idField, nameField, hiddenId) {
+    var inp    = document.getElementById(inputId);
+    var drop   = document.getElementById(dropdownId);
+    var hidden = document.getElementById(hiddenId);
+    var timer;
+    inp.addEventListener('input', function() {
+      clearTimeout(timer);
+      var q = this.value.trim();
+      if (!q) { drop.classList.remove('open'); hidden.value=''; return; }
+      timer = setTimeout(function() {
+        fetch(url + '?query=' + encodeURIComponent(q))
+          .then(function(r){ return r.json(); })
+          .then(function(data) {
+            drop.innerHTML = '';
+            if (!data.length) { drop.classList.remove('open'); return; }
+            data.forEach(function(item) {
+              var div = document.createElement('div');
+              div.className = 'autocomplete-item';
+              div.textContent = item[nameField];
+              div.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                inp.value    = item[nameField];
+                hidden.value = item[idField];
+                drop.classList.remove('open');
+              });
+              drop.appendChild(div);
+            });
+            drop.classList.add('open');
+          }).catch(function(){});
+      }, 250);
+    });
+    inp.addEventListener('blur', function() { setTimeout(function(){ drop.classList.remove('open'); }, 150); });
+  }
+
+  setupAC('centerInput', 'centerDropdown', '/suggest-lab-names',    'CenterID', 'CenterName', 'centerIdInput');
+  setupAC('referInput',  'referDropdown',  '/suggest-refer-names',  'ReferID',  'ReferName',  'referIdInput');
+  setupAC('doctorInput', 'doctorDropdown', '/suggest-doctor-names', 'DoctorID', 'DoctorName', 'doctorIdInput');
+    // ── Phone validation ──
+  function validatePhone(input) {
+    var err = document.getElementById('phoneError');
+    if (input.value.length > 0 && input.value.length < 10) {
+      err.style.display = 'block';
+      input.style.borderColor = 'var(--red-400)';
+    } else {
+      err.style.display = 'none';
+      input.style.borderColor = '';
+    }
+  }
+
+  // ── Block form if phone invalid ──
+  document.getElementById('registerForm').addEventListener('submit', function(e) {
+
+    // ── Validate phone ──
+    var phone = document.getElementById('phoneInput');
+    if (phone && phone.value.length > 0 && phone.value.length < 10) {
+      e.preventDefault();
+      document.getElementById('phoneError').style.display = 'block';
+      phone.focus();
+      showToast('Please enter a valid 10-digit mobile number', 'error');
+      return false;
+    }
+
+    // ── Validate at least 1 test or profile ──
+    var tests    = document.getElementById('selectedTestsInput').value.trim();
+    var profiles = document.getElementById('selectedProfilesInput').value.trim();
+    if (!tests && !profiles) {
+      e.preventDefault();
+      // Highlight the tests section
+      var container = document.getElementById('tagsContainer');
+      container.style.borderColor = 'var(--red-400)';
+      container.style.boxShadow   = '0 0 0 3px rgba(239,68,68,0.15)';
+      // Show error message
+      var testErr = document.getElementById('testError');
+      if (testErr) testErr.style.display = 'block';
+      // Scroll to tests section
+      container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast('Please add at least one test or profile', 'error');
+      return false;
+    }
+
+    // Clear highlight if valid
+    var container = document.getElementById('tagsContainer');
+    container.style.borderColor = '';
+    container.style.boxShadow   = '';
+  });
+</script>
+</body>
+</html>

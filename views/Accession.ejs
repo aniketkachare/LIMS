@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Accession — LIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<div class="app-shell">
+  <%- include('partials/sidebar', { activePage: 'accession', user: user }) %>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+      <div class="topbar-title">Accession</div>
+      <div class="topbar-right">
+        <div class="topbar-date"><i class="fas fa-calendar-alt"></i><span id="currentDate"></span></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">From Date</label>
+          <div style="position:relative;">
+            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">To Date</label>
+          <div style="position:relative;">
+            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="applyFilter()"><i class="fas fa-search"></i> Filter</button>
+        <button class="btn btn-secondary" onclick="clearFilter()"><i class="fas fa-times"></i> Clear</button>
+        <div style="flex:1;"></div>
+        <button class="btn btn-secondary" id="bulkBtn" disabled onclick="openModal('bulkModal')">
+          <i class="fas fa-layer-group"></i> Bulk Action
+        </button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-vials"></i></div>
+          <div class="stat-body">
+            <div class="stat-value"><%= data ? data.length : 0 %></div>
+            <div class="stat-label">Total Records</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i class="fas fa-clock"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="statPending">0</div>
+            <div class="stat-label">Pending</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-green"><i class="fas fa-check-double"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="statDone">0</div>
+            <div class="stat-label">Accession Done</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="card">
+        <div class="table-toolbar">
+          <div class="table-search">
+            <i class="fas fa-search"></i>
+            <input type="text" class="form-control" id="tableSearch" placeholder="Search records..." />
+          </div>
+          <label class="check-wrapper">
+            <input type="checkbox" id="headerCheck" onchange="toggleSelectAll(this)" /> Select All
+          </label>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table" id="accessionTable">
+            <thead>
+              <tr>
+                <th class="col-check"><input type="checkbox" onchange="toggleSelectAll(this)" /></th>
+                <th>Visit Code</th>
+                <th>Patient Name</th>
+                <th>Test / Profile</th>
+                <th>Visit Date</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (data && data.length > 0) { %>
+                <% data.forEach(function(row) { %>
+                <tr data-visit-trans="<%= row.VisitTransID %>" data-test="<%= row.TestID %>">
+                  <td><input type="checkbox" class="row-check" onchange="onRowCheck()" /></td>
+                  <td><span class="mono text-sm" style="font-weight:600;color:var(--blue-700);"><%= row.VisitCode || '—' %></span></td>
+                  <td>
+                    <strong><%= row.PatientName || '—' %></strong>
+                    <div class="text-xs text-muted">
+                      <%= row.Age ? row.Age + (row.AgeType || '') : '' %>
+                      <% if (row.Gender) { %> · <%= row.Gender %><% } %>
+                    </div>
+                  </td>
+                  <td><%= row.TestName || row.ProfileName || '—' %></td>
+                  <td class="text-sm"><%= row.VisitDateTime || '—' %></td>
+                  <td>
+                    <span class="badge <%=
+                      row.StatusName === 'Accession Done'   ? 'badge-green' :
+                      row.StatusName === 'Accession Hold'   ? 'badge-amber' :
+                      row.StatusName === 'Accession Reject' ? 'badge-red'   : 'badge-gray'
+                    %>">
+                      <span class="status-dot <%=
+                        row.StatusName === 'Accession Done'   ? 'dot-green' :
+                        row.StatusName === 'Accession Hold'   ? 'dot-amber' :
+                        row.StatusName === 'Accession Reject' ? 'dot-red'   : 'dot-gray'
+                      %>"></span>
+                      <%= row.StatusName || 'Pending' %>
+                    </span>
+                  </td>
+                  <td>
+                    <select class="form-control" style="width:150px;font-size:0.78rem;padding:5px 8px;"
+                      onchange="updateAction(this, '<%= row.VisitTransID %>', '<%= row.TestID %>')">
+                      <option value="">— Action —</option>
+                      <option value="6">Accession Done</option>
+                      <option value="7">Accession Reject</option>
+                      <option value="8">Accession Hold</option>
+                    </select>
+                  </td>
+                </tr>
+                <% }); %>
+              <% } else { %>
+              <tr>
+                <td colspan="7" style="text-align:center;padding:40px;color:var(--gray-400);">
+                  <i class="fas fa-vials" style="font-size:2rem;display:block;margin-bottom:10px;opacity:0.4;"></i>
+                  No accession records. Apply date filter to load.
+                </td>
+              </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <span class="pagination-info">Showing <strong><%= data ? data.length : 0 %></strong> records</span>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Bulk Action Modal -->
+<div class="modal-backdrop" id="bulkModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Bulk Accession Action</h3>
+      <button class="modal-close" data-modal-close><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Action for <span id="selectedCount">0</span> selected rows</label>
+        <select class="form-control" id="bulkActionSelect">
+          <option value="">— Select Action —</option>
+          <option value="6">Accession Done</option>
+          <option value="7">Accession Reject</option>
+          <option value="8">Accession Hold</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal-close>Cancel</button>
+      <button class="btn btn-primary" onclick="submitBulkAction()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+  // ── Table search ──
+  initTableSearch('tableSearch', 'accessionTable');
+
+  // ── Date pickers ──
+  initDatePicker('fromDate');
+  initDatePicker('toDate');
+
+  // ── Filter ──
+  function applyFilter() {
+    var from = document.getElementById('fromDate').value;
+    var to   = document.getElementById('toDate').value;
+    if (!from || !to) { showToast('Please select both From and To dates', 'warning'); return; }
+    window.location.href = '/Accession?FromDate=' + encodeURIComponent(from) + '&ToDate=' + encodeURIComponent(to);
+  }
+
+  function clearFilter() {
+    window._dpClear('fromDate');
+    window._dpClear('toDate');
+    window.location.href = '/Accession';
+  }
+
+  // ── Action update ──
+  function updateAction(sel, visitTransID, testID) {
+    var actionID = sel.value;
+    if (!actionID) return;
+    fetch('/update-accession-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ VisitTransID: visitTransID, TestID: testID, ActionID: actionID })
+    }).then(function(r) {
+      if (r.ok) showToast('Updated successfully', 'success');
+      else showToast('Update failed', 'error');
+    });
+  }
+
+  // ── Row selection ──
+  function onRowCheck() {
+    var n = document.querySelectorAll('.row-check:checked').length;
+    document.getElementById('bulkBtn').disabled = n === 0;
+    document.getElementById('selectedCount').textContent = n;
+  }
+
+  function toggleSelectAll(cb) {
+    document.querySelectorAll('.row-check').forEach(function(c) { c.checked = cb.checked; });
+    onRowCheck();
+  }
+
+  // ── Bulk action ──
+  function submitBulkAction() {
+    var actionID = document.getElementById('bulkActionSelect').value;
+    if (!actionID) { showToast('Select action', 'warning'); return; }
+    var rows = [];
+    document.querySelectorAll('tbody tr').forEach(function(tr) {
+      var cb = tr.querySelector('.row-check');
+      if (cb && cb.checked) rows.push({ visitTransID: tr.dataset.visitTrans, testID: tr.dataset.test });
+    });
+    fetch('/update-accession-bulk-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actionID: actionID, rows: rows })
+    }).then(function(r) {
+      if (r.ok) { showToast('Bulk update done', 'success'); closeModal('bulkModal'); }
+    });
+  }
+
+  // ── Count stats ──
+  var rows = document.querySelectorAll('#accessionTable tbody tr');
+  var pending = 0, done = 0;
+  rows.forEach(function(tr) {
+    var t = tr.querySelector('td:nth-child(6)') ? tr.querySelector('td:nth-child(6)').textContent.trim() : '';
+    if (t.includes('Pending')) pending++;
+    if (t.includes('Done'))    done++;
+  });
+  document.getElementById('statPending').textContent = pending;
+  document.getElementById('statDone').textContent    = done;
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — LIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+
+    <div class="login-logo">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <rect width="36" height="36" rx="10" fill="#1D4ED8"/>
+        <path d="M9 18 C9 13.029 13.029 9 18 9 C22.971 9 27 13.029 27 18" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="18" cy="18" r="3.5" fill="white"/>
+        <path d="M18 21.5 L18 27" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;color:#0f172a;letter-spacing:-0.03em;">LIMS</div>
+        <div style="font-size:0.7rem;color:#94a3b8;margin-top:-1px;">Laboratory Information System</div>
+      </div>
+    </div>
+
+    <h1 class="login-title">Welcome back</h1>
+    <p class="login-subtitle">Sign in to access your laboratory dashboard</p>
+
+    <% if (error) { %>
+    <div class="alert alert-error" data-auto-dismiss>
+      <i class="fas fa-exclamation-circle"></i>
+      <div>Invalid username or password. Please try again.</div>
+    </div>
+    <% } %>
+
+    <form action="/login" method="POST" id="loginForm">
+      <div class="form-group mb-16">
+        <label class="form-label" for="username">Username</label>
+        <div style="position:relative;">
+          <i class="fas fa-user" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.8rem;pointer-events:none;"></i>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            class="form-control"
+            style="padding-left:36px;"
+            placeholder="Enter your username"
+            autocomplete="username"
+            required
+          />
+        </div>
+      </div>
+
+      <div class="form-group mb-20">
+        <label class="form-label" for="password">Password</label>
+        <div style="position:relative;">
+          <i class="fas fa-lock" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.8rem;pointer-events:none;"></i>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            class="form-control"
+            style="padding-left:36px;padding-right:40px;"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            required
+          />
+          <button type="button" id="togglePwd" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.8rem;padding:4px;">
+            <i class="fas fa-eye" id="pwdIcon"></i>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-full" id="loginBtn" style="justify-content:center;height:42px;">
+        <span id="loginText">Sign In</span>
+        <span id="loginSpinner" class="spinner hidden"></span>
+      </button>
+    </form>
+
+    <p style="margin-top:24px;text-align:center;font-size:0.75rem;color:#94a3b8;">
+      <i class="fas fa-shield-halved" style="margin-right:4px;"></i>
+      Secured access — SoftLab Lifecare Laboratory
+    </p>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+  // Password toggle
+  document.getElementById('togglePwd').addEventListener('click', function() {
+    const inp = document.getElementById('password');
+    const icon = document.getElementById('pwdIcon');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      icon.className = 'fas fa-eye-slash';
+    } else {
+      inp.type = 'password';
+      icon.className = 'fas fa-eye';
+    }
+  });
+
+  // Loading state on submit
+  document.getElementById('loginForm').addEventListener('submit', function() {
+    document.getElementById('loginText').textContent = 'Signing in...';
+    document.getElementById('loginSpinner').classList.remove('hidden');
+    document.getElementById('loginBtn').disabled = true;
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Validation — LIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .validation-layout {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .validation-layout { grid-template-columns: 1fr; } }
+
+    .patient-list-panel {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg); overflow: hidden;
+      position: sticky; top: 80px;
+    }
+    .panel-header {
+      padding: 14px 16px; border-bottom: 1px solid var(--gray-100);
+      display: flex; align-items: center; gap: 10px; background: var(--gray-50);
+    }
+    .panel-header h4 { font-size: 0.845rem; font-weight: 700; color: var(--gray-700); flex: 1; margin: 0; }
+    .patient-list { max-height: 560px; overflow-y: auto; }
+    .patient-list::-webkit-scrollbar { width: 4px; }
+    .patient-list::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
+
+    .pli {
+      padding: 11px 16px; border-bottom: 1px solid var(--gray-50);
+      cursor: pointer; transition: background var(--transition-fast);
+    }
+    .pli:hover { background: var(--gray-50); }
+    .pli.active { background: var(--blue-50); border-left: 3px solid var(--blue-600); }
+    .pli-name { font-size: 0.845rem; font-weight: 600; color: var(--gray-800); }
+    .pli-code { font-size: 0.72rem; font-family: var(--font-mono); color: var(--blue-600); font-weight: 700; }
+    .pli-meta { font-size: 0.7rem; color: var(--gray-400); margin-top: 1px; }
+
+    .val-table { width: 100%; border-collapse: collapse; }
+    .val-table thead tr { background: var(--gray-50); border-bottom: 2px solid var(--gray-200); }
+    .val-table th { padding: 10px 14px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); text-align: left; }
+    .val-table td { padding: 11px 14px; border-bottom: 1px solid var(--gray-100); font-size: 0.845rem; vertical-align: middle; }
+    .val-table tr:last-child td { border-bottom: none; }
+    .val-table tr:hover td { background: var(--gray-50); }
+
+    .result-value { font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem; }
+    .result-value.high   { color: var(--red-600); }
+    .result-value.low    { color: var(--blue-600); }
+    .result-value.normal { color: var(--green-600); }
+    .result-value.no-range { color: var(--gray-700); }
+    .arrow-high::after { content: ' ↑'; font-size: 0.75em; }
+    .arrow-low::after  { content: ' ↓'; font-size: 0.75em; }
+
+    .val-actions-bar {
+      background: var(--white); border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg); padding: 16px 20px;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--gray-400); }
+    .empty-state i { font-size: 2.5rem; display: block; margin-bottom: 14px; opacity: 0.35; }
+
+    .test-section-title {
+      font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--gray-400);
+      padding: 10px 14px; background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-100);
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <%- include('partials/sidebar', { activePage: 'validation', user: typeof user !== 'undefined' ? user : null }) %>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+      <div class="topbar-title">Validation</div>
+      <div class="topbar-right">
+        <div class="topbar-date"><i class="fas fa-calendar-alt"></i><span id="currentDate"></span></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Filter bar -->
+      <div class="filter-bar mb-20">
+        <div class="form-group">
+          <label class="form-label">From Date</label>
+          <div style="position:relative;">
+            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY"
+              value="<%= typeof fromDate !== 'undefined' ? fromDate : '' %>" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">To Date</label>
+          <div style="position:relative;">
+            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY"
+              value="<%= typeof toDate !== 'undefined' ? toDate : '' %>" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="applyFilter()"><i class="fas fa-search"></i> Load</button>
+        <button class="btn btn-secondary" onclick="clearFilter()"><i class="fas fa-times"></i> Clear</button>
+      </div>
+
+      <div class="validation-layout">
+
+        <!-- Patient list -->
+        <div class="patient-list-panel">
+          <div class="panel-header">
+            <h4><i class="fas fa-users" style="color:var(--blue-500);margin-right:6px;"></i>Patients</h4>
+            <span class="badge badge-blue"><%= typeof patientList !== 'undefined' ? patientList.length : 0 %></span>
+          </div>
+          <div style="padding:10px 12px;border-bottom:1px solid var(--gray-100);">
+            <input type="text" class="form-control" style="font-size:0.8rem;" placeholder="Search patient..." oninput="filterList(this.value)" />
+          </div>
+          <div class="patient-list" id="patientList">
+            <% if (typeof patientList !== 'undefined' && patientList.length > 0) { %>
+              <% patientList.forEach(function(p, i) { %>
+              <div class="pli <%= i === 0 ? 'active' : '' %>"
+                   data-vc="<%= p.VisitCode %>"
+                   data-name="<%= (p.PatientName || '').toLowerCase() %>"
+                   onclick="loadValidation('<%= p.VisitCode %>', this)">
+                <div class="pli-name"><%= p.PatientName || '—' %></div>
+                <div class="pli-code"><%= p.VisitCode %></div>
+                <div class="pli-meta">
+                  <%= p.Age ? p.Age + (p.AgeType || '') : '' %>
+                  <% if (p.Gender) { %> · <%= p.Gender %><% } %>
+                </div>
+              </div>
+              <% }); %>
+            <% } else { %>
+            <div style="padding:28px;text-align:center;color:var(--gray-400);font-size:0.845rem;">
+              No patients. Apply date filter.
+            </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Validation panel -->
+        <div id="validationPanel">
+          <div class="card">
+            <div class="empty-state">
+              <i class="fas fa-check-double"></i>
+              <p>Select a patient to review and validate results.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+  // ── Date pickers ──
+  initDatePicker('fromDate');
+  initDatePicker('toDate');
+
+  // ── Filter ──
+  function applyFilter() {
+    var from = document.getElementById('fromDate').value;
+    var to   = document.getElementById('toDate').value;
+    if (!from || !to) { showToast('Please select both From and To dates', 'warning'); return; }
+    window.location.href = '/validation?FromDate=' + encodeURIComponent(from) + '&ToDate=' + encodeURIComponent(to);
+  }
+
+  function clearFilter() {
+    window._dpClear('fromDate');
+    window._dpClear('toDate');
+    window.location.href = '/validation';
+  }
+
+  // ── Patient list filter ──
+  function filterList(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('.pli').forEach(function(el) {
+      el.style.display = (el.dataset.name.includes(q) || el.dataset.vc.toLowerCase().includes(q)) ? '' : 'none';
+    });
+  }
+
+  // ── Load validation ──
+  function loadValidation(visitCode, el) {
+    document.querySelectorAll('.pli').forEach(function(i) { i.classList.remove('active'); });
+    el.classList.add('active');
+
+    var panel = document.getElementById('validationPanel');
+    panel.innerHTML = '<div class="card"><div style="padding:40px;text-align:center;"><div class="spinner" style="width:28px;height:28px;border-width:3px;margin:0 auto;"></div><p style="margin-top:12px;color:var(--gray-400);font-size:0.845rem;">Loading...</p></div></div>';
+
+    fetch('/result/details/' + visitCode)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) {
+          panel.innerHTML = '<div class="card"><div style="padding:40px;text-align:center;color:var(--red-500);">Failed to load data.</div></div>';
+          return;
+        }
+        renderValidation(visitCode, data.resultDetails, data.resultTests);
+      })
+      .catch(function() {
+        panel.innerHTML = '<div class="card"><div style="padding:40px;text-align:center;color:var(--red-500);">Network error.</div></div>';
+      });
+  }
+
+  // ── Range helpers ──
+  function parseRange(rangeStr) {
+    if (!rangeStr) return null;
+    var match = rangeStr.match(/^([\d.]+)\s*[-\u2013]\s*([\d.]+)$/);
+    if (match) return { low: parseFloat(match[1]), high: parseFloat(match[2]) };
+    return null;
+  }
+
+  function getResultClass(val, rangeStr) {
+    var num = parseFloat(val);
+    if (isNaN(num) || !rangeStr) return 'no-range';
+    var range = parseRange(rangeStr);
+    if (!range) return 'no-range';
+    if (num < range.low)  return 'low';
+    if (num > range.high) return 'high';
+    return 'normal';
+  }
+
+  // ── Render validation panel ──
+  function renderValidation(visitCode, details, tests) {
+    var d = details || {};
+    var testMap = {};
+    (tests || []).forEach(function(t) {
+      if (!testMap[t.TestID]) testMap[t.TestID] = { name: t.TestName, params: [] };
+      testMap[t.TestID].params.push(t);
+    });
+
+    var tableRows  = '';
+    var hasAbnormal = false;
+
+    Object.values(testMap).forEach(function(test) {
+      tableRows += '<tr><td colspan="5" class="test-section-title">' + test.name + '</td></tr>';
+      test.params.forEach(function(p) {
+        var cls        = getResultClass(p.Result, p.DisplayRange);
+        if (cls === 'high' || cls === 'low') hasAbnormal = true;
+        var arrowClass = cls === 'high' ? 'arrow-high' : cls === 'low' ? 'arrow-low' : '';
+        var flagBadge  = cls === 'high'    ? '<span class="badge badge-red">&#8593; High</span>'
+                       : cls === 'low'     ? '<span class="badge badge-blue">&#8595; Low</span>'
+                       : cls === 'normal'  ? '<span class="badge badge-green">Normal</span>'
+                       :                    '<span class="badge badge-gray">—</span>';
+        tableRows += '<tr>' +
+          '<td>' + (p.ParameterName || '—') + '</td>' +
+          '<td><span class="result-value ' + cls + ' ' + arrowClass + '">' + (p.Result || '—') + '</span></td>' +
+          '<td class="text-sm" style="color:var(--gray-500);">' + (p.UnitName || '') + '</td>' +
+          '<td class="text-sm" style="font-family:var(--font-mono);color:var(--gray-400);">' + (p.DisplayRange || '—') + '</td>' +
+          '<td>' + flagBadge + '</td>' +
+        '</tr>';
+      });
+    });
+
+    var abnormalBadge = hasAbnormal
+      ? '<span class="badge badge-red"><i class="fas fa-exclamation-triangle"></i> Abnormal Results</span>'
+      : '<span class="badge badge-green"><i class="fas fa-check-circle"></i> All Normal</span>';
+
+    document.getElementById('validationPanel').innerHTML =
+      '<div class="val-actions-bar">' +
+        '<div>' +
+          '<div style="font-size:0.75rem;color:var(--gray-400);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Patient</div>' +
+          '<div style="font-size:1rem;font-weight:700;color:var(--gray-900);">' + (d.PatientName || '—') + '</div>' +
+          '<div class="text-xs text-muted">' + visitCode + ' · ' + (d.Age || '') + (d.AgeType || '') + ' · ' + (d.Gender || '') + '</div>' +
+        '</div>' +
+        abnormalBadge +
+        '<div style="flex:1;"></div>' +
+        '<button class="btn btn-secondary btn-sm" onclick="window.open(\'/reports/preview/' + visitCode + '\',\'_blank\')">' +
+          '<i class="fas fa-eye"></i> Preview Report' +
+        '</button>' +
+        '<button class="btn btn-success" onclick="validatePatient(\'' + visitCode + '\')">' +
+          '<i class="fas fa-check-double"></i> Validate' +
+        '</button>' +
+      '</div>' +
+
+      '<div class="card">' +
+        '<div class="card-header">' +
+          '<h3 class="card-title"><i class="fas fa-clipboard-list" style="color:var(--blue-500);margin-right:6px;"></i>Result Review</h3>' +
+        '</div>' +
+        '<div class="table-wrapper">' +
+          '<table class="val-table">' +
+            '<thead><tr><th>Parameter</th><th>Result</th><th>Unit</th><th>Ref Range</th><th>Flag</th></tr></thead>' +
+            '<tbody>' + (tableRows || '<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--gray-400);">No results available.</td></tr>') + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div class="card-footer">' +
+          '<span class="text-xs text-muted"><i class="fas fa-user-md" style="margin-right:4px;"></i>Doctor: ' + (d.DoctorName || '—') + '</span>' +
+          '<div style="flex:1;"></div>' +
+          '<button class="btn btn-success btn-lg" onclick="validatePatient(\'' + visitCode + '\')">' +
+            '<i class="fas fa-check-double"></i> Validate &amp; Authorize' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ── Validate patient ──
+  function validatePatient(visitCode) {
+    fetch('/api/update-testwise-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ VisitTransID: null, TestID: null, ActionID: 6, VisitCode: visitCode })
+    }).then(function() {
+      showToast('Results validated and authorized', 'success');
+      document.querySelectorAll('.pli.active .pli-name').forEach(function(el) {
+        if (!el.nextElementSibling || !el.nextElementSibling.classList.contains('badge')) {
+          el.insertAdjacentHTML('afterend', '<span class="badge badge-green" style="margin-top:3px;display:inline-flex;">Validated</span>');
+        }
+      });
+    }).catch(function() {
+      showToast('Validation request sent', 'info');
+    });
+  }
+
+  // Auto-load first patient
+  var first = document.querySelector('.pli');
+  if (first) loadValidation(first.dataset.vc, first);
+</script>
+</body>
+</html>

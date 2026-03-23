@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reports — LIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<div class="app-shell">
+  <%- include('partials/sidebar', { activePage: 'reports', user: typeof user !== 'undefined' ? user : null }) %>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+      <div class="topbar-title">Patient Reports</div>
+      <div class="topbar-right">
+        <div class="topbar-date"><i class="fas fa-calendar-alt"></i><span id="currentDate"></span></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">From Date</label>
+          <div style="position:relative;">
+            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">To Date</label>
+          <div style="position:relative;">
+            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="applyFilter()"><i class="fas fa-search"></i> Filter</button>
+        <button class="btn btn-secondary" onclick="clearFilter()"><i class="fas fa-times"></i> Clear</button>
+      </div>
+
+      <!-- Table -->
+      <div class="card">
+        <div class="table-toolbar">
+          <div class="table-search">
+            <i class="fas fa-search"></i>
+            <input type="text" class="form-control" id="tableSearch" placeholder="Search patient, visit code..." />
+          </div>
+          <span class="badge badge-blue" style="margin-left:auto;">
+            <%= patients ? patients.length : 0 %> records
+          </span>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table" id="reportsTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Visit Code</th>
+                <th>Patient Name</th>
+                <th>Age / Gender</th>
+                <th>Doctor</th>
+                <th>Visit Date</th>
+                <th>Status</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (patients && patients.length > 0) { %>
+                <% patients.forEach(function(p, i) { %>
+                <tr>
+                  <td class="text-sm text-muted"><%= i + 1 %></td>
+                  <td>
+                    <a href="/reports/preview/<%= p.VisitCode %>" target="_blank"
+                      style="color:var(--blue-700);font-family:var(--font-mono);font-weight:700;font-size:0.845rem;">
+                      <%= p.VisitCode %>
+                    </a>
+                  </td>
+                  <td><strong><%= p.PatientName || '—' %></strong></td>
+                  <td class="text-sm">
+                    <%= p.Age ? p.Age + (p.AgeType || '') : '—' %>
+                    <% if (p.Gender) { %><span style="color:var(--gray-400);"> · </span><%= p.Gender %><% } %>
+                  </td>
+                  <td class="text-sm"><%= p.DoctorName || '—' %></td>
+                  <td class="text-sm">
+                    <%= p.VisitDateTime ? new Date(p.VisitDateTime).toLocaleDateString('en-IN') : '—' %>
+                  </td>
+                  <td>
+                    <span class="badge <%=
+                      p.StatusName === 'Validated'      ? 'badge-green' :
+                      p.StatusName === 'Sample Collect' ? 'badge-blue'  :
+                      p.StatusName === 'Accession Done' ? 'badge-violet':
+                      'badge-amber'
+                    %>">
+                      <span class="status-dot <%=
+                        p.StatusName === 'Validated'      ? 'dot-green' :
+                        p.StatusName === 'Sample Collect' ? 'dot-blue'  :
+                        p.StatusName === 'Accession Done' ? 'dot-blue'  :
+                        'dot-amber'
+                      %>"></span>
+                      <%= p.StatusName || 'Pending' %>
+                    </span>
+                  </td>
+                  <td class="col-actions">
+                    <div class="flex gap-4 justify-end">
+                      <a href="/reports/preview/<%= p.VisitCode %>" target="_blank"
+                        class="btn btn-ghost btn-sm" title="Preview PDF">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <a href="/reports/download/<%= p.VisitCode %>"
+                        class="btn btn-ghost btn-sm" title="Download PDF">
+                        <i class="fas fa-download"></i>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+                <% }); %>
+              <% } else { %>
+              <tr>
+                <td colspan="8" style="text-align:center;padding:40px;color:var(--gray-400);">
+                  <i class="fas fa-file-medical" style="font-size:2rem;display:block;margin-bottom:10px;opacity:0.4;"></i>
+                  No reports found. Apply a date filter to load records.
+                </td>
+              </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <span class="pagination-info">
+            <strong><%= patients ? patients.length : 0 %></strong> total records
+          </span>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+  // ── Table search ──
+  initTableSearch('tableSearch', 'reportsTable');
+
+  // ── Date pickers ──
+  initDatePicker('fromDate');
+  initDatePicker('toDate');
+
+  // ── Filter ──
+  function applyFilter() {
+    var from = document.getElementById('fromDate').value;
+    var to   = document.getElementById('toDate').value;
+    if (!from || !to) { showToast('Please select both From and To dates', 'warning'); return; }
+    window.location.href = '/reports?fromDate=' + encodeURIComponent(from) + '&toDate=' + encodeURIComponent(to);
+  }
+
+  function clearFilter() {
+    window._dpClear('fromDate');
+    window._dpClear('toDate');
+    window.location.href = '/reports';
+  }
+</script>
+</body>
+</html>

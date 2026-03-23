@@ -1,0 +1,64 @@
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="8" fill="#1D4ED8"/>
+        <path d="M7 14 C7 10.134 10.134 7 14 7 C17.866 7 21 10.134 21 14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="14" cy="14" r="3" fill="white"/>
+        <path d="M14 17 L14 21" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <span class="logo-name">LIMS</span>
+      <span class="logo-sub">Lab Information System</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Main</div>
+    <a href="/dashboard" class="nav-item <%= activePage === 'dashboard' ? 'active' : '' %>">
+      <i class="fas fa-home"></i><span>Dashboard</span>
+    </a>
+    <a href="/register" class="nav-item <%= activePage === 'register' ? 'active' : '' %>">
+      <i class="fas fa-user-plus"></i><span>Registration</span>
+    </a>
+    <a href="/collection" class="nav-item <%= activePage === 'collection' ? 'active' : '' %>">
+      <i class="fas fa-flask"></i><span>Collection</span>
+    </a>
+    <a href="/Accession" class="nav-item <%= activePage === 'accession' ? 'active' : '' %>">
+      <i class="fas fa-vials"></i><span>Accession</span>
+    </a>
+    <a href="/Barcodeprinting" class="nav-item <%= activePage === 'barcode' ? 'active' : '' %>">
+      <i class="fas fa-barcode"></i><span>Barcode Printing</span>
+    </a>
+
+    <div class="nav-section-label">Reports</div>
+    <a href="/reports" class="nav-item <%= activePage === 'reports' ? 'active' : '' %>">
+      <i class="fas fa-file-medical"></i><span>Reports</span>
+    </a>
+    <a href="/result" class="nav-item <%= activePage === 'result-entry' ? 'active' : '' %>">
+      <i class="fas fa-edit"></i><span>Result Entry</span>
+    </a>
+    <a href="/validation" class="nav-item <%= activePage === 'validation' ? 'active' : '' %>">
+      <i class="fas fa-check-circle"></i><span>Validation</span>
+    </a>
+    <a href="/Search" class="nav-item <%= activePage === 'search' ? 'active' : '' %>">
+      <i class="fas fa-magnifying-glass"></i><span>Search</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <% if (typeof user !== 'undefined' && user) { %>
+    <div class="user-info">
+      <div class="user-avatar"><%= user.userName ? user.userName[0].toUpperCase() : 'U' %></div>
+      <div class="user-details">
+        <span class="user-name"><%= user.userName || 'User' %></span>
+        <span class="user-role">Staff</span>
+      </div>
+    </div>
+    <form action="/logout" method="POST" style="margin:0">
+      <button type="submit" class="btn-logout" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+    </form>
+    <% } %>
+  </div>
+</aside>

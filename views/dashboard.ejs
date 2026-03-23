@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — LIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .welcome-banner {
+      background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+      border-radius: var(--radius-xl);
+      padding: 28px 32px;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      overflow: hidden;
+      position: relative;
+    }
+    .welcome-banner::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 200px; height: 200px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 50%;
+    }
+    .welcome-banner::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; right: 80px;
+      width: 250px; height: 250px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 50%;
+    }
+    .welcome-text h2 {
+      font-size: 1.4rem; font-weight: 800;
+      letter-spacing: -0.03em; margin-bottom: 4px;
+    }
+    .welcome-text p { font-size: 0.875rem; opacity: 0.8; }
+    .welcome-icon {
+      font-size: 3rem; opacity: 0.2;
+      position: relative; z-index: 1;
+    }
+
+    /* Quick action cards */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .quick-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 20px 16px;
+      text-align: center;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow var(--transition-base), transform var(--transition-base), border-color var(--transition-base);
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .quick-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+      border-color: var(--blue-200);
+    }
+    .quick-card-icon {
+      width: 48px; height: 48px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+    }
+    .quick-card-label {
+      font-size: 0.8rem; font-weight: 700;
+      color: var(--gray-700); text-align: center;
+    }
+
+    /* Activity list */
+    .activity-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--gray-50);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .activity-text { flex: 1; font-size: 0.845rem; color: var(--gray-700); }
+    .activity-time { font-size: 0.72rem; color: var(--gray-400); white-space: nowrap; }
+
+    /* Two column layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 20px;
+    }
+    @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <%- include('partials/sidebar', { activePage: 'dashboard', user: user }) %>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+      <div class="topbar-title">Dashboard</div>
+      <div class="topbar-right">
+        <div class="topbar-date"><i class="fas fa-calendar-alt"></i><span id="currentDate"></span></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Welcome Banner -->
+      <div class="welcome-banner">
+        <div class="welcome-text">
+          <h2>Welcome back, <%= user.userName || 'User' %>! 👋</h2>
+          <p>Here's what's happening at the lab today.</p>
+        </div>
+        <i class="fas fa-flask welcome-icon"></i>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid" style="margin-bottom:28px;">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-user-plus"></i></div>
+          <div class="stat-body">
+            <div class="stat-value"><%= stats.todayPatients %></div>
+            <div class="stat-label">Patients Today</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-green"><i class="fas fa-users"></i></div>
+          <div class="stat-body">
+            <div class="stat-value"><%= stats.totalPatients %></div>
+            <div class="stat-label">Total Patients</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i class="fas fa-clock"></i></div>
+          <div class="stat-body">
+            <div class="stat-value"><%= stats.pendingCollection %></div>
+            <div class="stat-label">Pending Collection</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-violet"><i class="fas fa-check-double"></i></div>
+          <div class="stat-body">
+            <div class="stat-value"><%= stats.completedToday %></div>
+            <div class="stat-label">Completed Today</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div>
+          <!-- Quick Actions -->
+          <div style="margin-bottom:8px;">
+            <h3 style="font-size:0.9rem;font-weight:700;color:var(--gray-700);margin-bottom:16px;">
+              <i class="fas fa-bolt" style="color:var(--blue-500);margin-right:6px;"></i>Quick Actions
+            </h3>
+            <div class="quick-actions">
+              <a href="/register" class="quick-card">
+                <div class="quick-card-icon" style="background:var(--blue-50);color:var(--blue-600);">
+                  <i class="fas fa-user-plus"></i>
+                </div>
+                <span class="quick-card-label">New Registration</span>
+              </a>
+              <a href="/collection" class="quick-card">
+                <div class="quick-card-icon" style="background:var(--green-50);color:var(--green-600);">
+                  <i class="fas fa-flask"></i>
+                </div>
+                <span class="quick-card-label">Collection</span>
+              </a>
+              <a href="/Accession" class="quick-card">
+                <div class="quick-card-icon" style="background:var(--violet-50);color:var(--violet-600);">
+                  <i class="fas fa-vials"></i>
+                </div>
+                <span class="quick-card-label">Accession</span>
+              </a>
+              <a href="/Barcodeprinting" class="quick-card">
+                <div class="quick-card-icon" style="background:var(--amber-50);color:var(--amber-600);">
+                  <i class="fas fa-barcode"></i>
+                </div>
+                <span class="quick-card-label">Barcode Print</span>
+              </a>
+              <a href="/result" class="quick-card">
+                <div class="quick-card-icon" style="background:var(--blue-50);color:var(--blue-600);">
+                  <i class="fas fa-edit"></i>
+                </div>
+                <span class="quick-card-label">Result Entry</span>
+              </a>
+              <a href="/validation" class="quick-card">
+                <div class="quick-card-icon" style="background:var(--green-50);color:var(--green-600);">
+                  <i class="fas fa-check-circle"></i>
+                </div>
+                <span class="quick-card-label">Validation</span>
+              </a>
+              <a href="/reports" class="quick-card">
+                <div class="quick-card-icon" style="background:var(--red-50);color:var(--red-500);">
+                  <i class="fas fa-file-medical"></i>
+                </div>
+                <span class="quick-card-label">Reports</span>
+              </a>
+              <a href="/Search" class="quick-card">
+                <div class="quick-card-icon" style="background:var(--gray-100);color:var(--gray-600);">
+                  <i class="fas fa-search"></i>
+                </div>
+                <span class="quick-card-label">Search</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right panel: Lab info -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-hospital" style="color:var(--blue-500);margin-right:6px;"></i>Lab Info</h3>
+            </div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:14px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <div style="width:36px;height:36px;border-radius:8px;background:var(--blue-50);display:flex;align-items:center;justify-content:center;color:var(--blue-600);flex-shrink:0;">
+                    <i class="fas fa-user-shield"></i>
+                  </div>
+                  <div>
+                    <div style="font-size:0.72rem;color:var(--gray-400);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Logged in as</div>
+                    <div style="font-size:0.875rem;font-weight:700;color:var(--gray-800);"><%= user.userName || '—' %></div>
+                  </div>
+                </div>
+
+                <div style="border-top:1px solid var(--gray-100);padding-top:14px;">
+                  <div style="font-size:0.72rem;color:var(--gray-400);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">System Status</div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                    <span class="status-dot dot-green"></span>
+                    <span style="font-size:0.845rem;color:var(--gray-700);">Database Connected</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                    <span class="status-dot dot-green"></span>
+                    <span style="font-size:0.845rem;color:var(--gray-700);">Server Running</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="status-dot dot-green"></span>
+                    <span style="font-size:0.845rem;color:var(--gray-700);">Session Active</span>
+                  </div>
+                </div>
+
+                <div style="border-top:1px solid var(--gray-100);padding-top:14px;">
+                  <div style="font-size:0.72rem;color:var(--gray-400);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Today</div>
+                  <div style="font-size:0.875rem;font-weight:600;color:var(--gray-700);" id="todayFull"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+  var todayEl = document.getElementById('todayFull');
+  if (todayEl) {
+    todayEl.textContent = new Date().toLocaleDateString('en-IN', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+  }
+</script>
+</body>
+</html>

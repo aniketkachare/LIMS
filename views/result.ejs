@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Result Entry — LIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .result-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .result-layout { grid-template-columns: 1fr; } }
+
+    .patient-list-panel {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      position: sticky;
+      top: 80px;
+    }
+    .panel-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--gray-100);
+      display: flex; align-items: center; gap: 8px;
+      background: var(--gray-50);
+    }
+    .panel-header h4 { font-size: 0.845rem; font-weight: 700; color: var(--gray-700); flex: 1; margin: 0; }
+    .patient-list { max-height: 520px; overflow-y: auto; }
+    .patient-list::-webkit-scrollbar { width: 4px; }
+    .patient-list::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
+
+    .pli {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--gray-50);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    .pli:hover { background: var(--gray-50); }
+    .pli.active { background: var(--blue-50); border-left: 3px solid var(--blue-600); }
+    .pli-name { font-size: 0.845rem; font-weight: 600; color: var(--gray-800); }
+    .pli-code { font-size: 0.72rem; font-family: var(--font-mono); color: var(--blue-600); font-weight: 700; }
+    .pli-meta { font-size: 0.7rem; color: var(--gray-400); margin-top: 1px; }
+
+    .patient-info-banner {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .p-avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--blue-600); color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 700; flex-shrink: 0;
+    }
+    .p-info-fields { flex: 1; display: flex; gap: 20px; flex-wrap: wrap; }
+    .p-info-item .p-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-400); font-weight: 600; }
+    .p-info-item .p-val { font-size: 0.845rem; font-weight: 600; color: var(--gray-800); margin-top: 1px; }
+
+    .test-tabs {
+      display: flex; gap: 4px;
+      border-bottom: 2px solid var(--gray-200);
+      margin-bottom: 20px; overflow-x: auto;
+    }
+    .test-tab {
+      padding: 8px 16px;
+      font-size: 0.8rem; font-weight: 600; color: var(--gray-500);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -2px; white-space: nowrap;
+      transition: color var(--transition-fast), border-color var(--transition-fast);
+      background: none; border-top: none; border-left: none; border-right: none;
+    }
+    .test-tab:hover { color: var(--gray-800); }
+    .test-tab.active { color: var(--blue-700); border-bottom-color: var(--blue-600); }
+
+    .result-table { width: 100%; border-collapse: collapse; }
+    .result-table thead tr { background: var(--gray-50); border-bottom: 2px solid var(--gray-200); }
+    .result-table th { padding: 10px 14px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); text-align: left; }
+    .result-table td { padding: 10px 14px; border-bottom: 1px solid var(--gray-100); font-size: 0.845rem; vertical-align: middle; }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-table tr:hover td { background: var(--gray-50); }
+
+    .result-input {
+      width: 100%; padding: 7px 10px;
+      border: 1.5px solid var(--gray-200); border-radius: 6px;
+      font-size: 0.845rem; font-family: var(--font-mono); font-weight: 600; color: var(--gray-800);
+      outline: none;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .result-input:focus { border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+
+    .save-row-btn {
+      background: none; border: none; color: var(--gray-300); cursor: pointer;
+      padding: 4px 8px; border-radius: 4px;
+      transition: color var(--transition-fast), background var(--transition-fast);
+      font-size: 0.78rem;
+    }
+    .save-row-btn:hover { color: var(--green-600); background: var(--green-50); }
+    .save-row-btn.saved { color: var(--green-500); }
+
+    .empty-panel { text-align: center; padding: 60px 20px; color: var(--gray-400); }
+    .empty-panel i { font-size: 2.5rem; display: block; margin-bottom: 14px; opacity: 0.3; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <%- include('partials/sidebar', { activePage: 'result-entry', user: typeof user !== 'undefined' ? user : null }) %>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+      <div class="topbar-title">Result Entry</div>
+      <div class="topbar-right">
+        <div class="topbar-date"><i class="fas fa-calendar-alt"></i><span id="currentDate"></span></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Date filter -->
+      <div class="filter-bar mb-20">
+        <div class="form-group">
+          <label class="form-label">From Date</label>
+          <div style="position:relative;">
+            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY"
+              value="<%= typeof fromDate !== 'undefined' ? fromDate : '' %>" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">To Date</label>
+          <div style="position:relative;">
+            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY"
+              value="<%= typeof toDate !== 'undefined' ? toDate : '' %>" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="applyFilter()"><i class="fas fa-search"></i> Load Patients</button>
+        <button class="btn btn-secondary" onclick="clearFilter()"><i class="fas fa-times"></i> Clear</button>
+      </div>
+
+      <div class="result-layout">
+
+        <!-- Patient list -->
+        <div class="patient-list-panel">
+          <div class="panel-header">
+            <h4><i class="fas fa-users" style="color:var(--blue-500);margin-right:6px;"></i>Patients</h4>
+            <span class="badge badge-blue"><%= patientList ? patientList.length : 0 %></span>
+          </div>
+          <div style="padding:10px 12px;border-bottom:1px solid var(--gray-100);">
+            <input type="text" class="form-control" style="font-size:0.8rem;" placeholder="Search patient..." oninput="filterList(this.value)" />
+          </div>
+          <div class="patient-list" id="patientList">
+            <% if (patientList && patientList.length > 0) { %>
+              <% patientList.forEach(function(p, i) { %>
+              <div class="pli <%= i === 0 ? 'active' : '' %>"
+                   data-vc="<%= p.VisitCode %>"
+                   data-name="<%= (p.PatientName || '').toLowerCase() %>"
+                   onclick="loadResult('<%= p.VisitCode %>', this)">
+                <div class="pli-name"><%= p.PatientName || '—' %></div>
+                <div class="pli-code"><%= p.VisitCode %></div>
+                <div class="pli-meta">
+                  <%= p.Age ? p.Age + (p.AgeType || '') : '' %>
+                  <% if (p.Gender) { %> · <%= p.Gender %><% } %>
+                </div>
+              </div>
+              <% }); %>
+            <% } else { %>
+            <div style="padding:24px;text-align:center;color:var(--gray-400);font-size:0.845rem;">
+              No patients found.<br>Apply a date filter.
+            </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Result panel -->
+        <div id="resultPanel">
+          <div class="card">
+            <div class="empty-panel">
+              <i class="fas fa-flask-vial"></i>
+              <p>Select a patient from the list to enter results.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+  // ── Date pickers ──
+  initDatePicker('fromDate');
+  initDatePicker('toDate');
+
+  // ── Filter ──
+  function applyFilter() {
+    var from = document.getElementById('fromDate').value;
+    var to   = document.getElementById('toDate').value;
+    if (!from || !to) { showToast('Please select both From and To dates', 'warning'); return; }
+    window.location.href = '/result?FromDate=' + encodeURIComponent(from) + '&ToDate=' + encodeURIComponent(to);
+  }
+
+  function clearFilter() {
+    window._dpClear('fromDate');
+    window._dpClear('toDate');
+    window.location.href = '/result';
+  }
+
+  // ── Patient list filter ──
+  function filterList(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('.pli').forEach(function(el) {
+      el.style.display = (el.dataset.name.includes(q) || el.dataset.vc.toLowerCase().includes(q)) ? '' : 'none';
+    });
+  }
+
+  // ── Load result for patient ──
+  function loadResult(visitCode, el) {
+    document.querySelectorAll('.pli').forEach(function(i) { i.classList.remove('active'); });
+    el.classList.add('active');
+
+    var panel = document.getElementById('resultPanel');
+    panel.innerHTML = '<div class="card"><div style="padding:40px;text-align:center;"><div class="spinner" style="width:28px;height:28px;border-width:3px;margin:0 auto;"></div><p style="margin-top:12px;color:var(--gray-400);font-size:0.845rem;">Loading...</p></div></div>';
+
+    fetch('/result/details/' + visitCode)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) {
+          panel.innerHTML = '<div class="card"><div style="padding:40px;text-align:center;color:var(--red-500);">Failed to load patient data.</div></div>';
+          return;
+        }
+        renderResult(visitCode, data.resultDetails, data.resultTests);
+      })
+      .catch(function() {
+        panel.innerHTML = '<div class="card"><div style="padding:40px;text-align:center;color:var(--red-500);">Network error.</div></div>';
+      });
+  }
+
+  // ── Render result panel ──
+  function renderResult(visitCode, details, tests) {
+    var d = details || {};
+    var testMap = {};
+    (tests || []).forEach(function(t) {
+      if (!testMap[t.TestID]) testMap[t.TestID] = { name: t.TestName, params: [] };
+      testMap[t.TestID].params.push(t);
+    });
+    var testIds = Object.keys(testMap);
+
+    var tabsHtml = testIds.map(function(tid, i) {
+      return '<button class="test-tab ' + (i === 0 ? 'active' : '') + '" onclick="switchTab(\'tab-' + tid + '\', this)">' + testMap[tid].name + '</button>';
+    }).join('');
+
+    var contentHtml = testIds.map(function(tid, i) {
+      var rows = testMap[tid].params.map(function(p) {
+        return '<tr>' +
+          '<td>' + (p.ParameterName || '—') + '</td>' +
+          '<td><input type="text" class="result-input" value="' + (p.Result || '') + '"' +
+            ' data-param="' + p.ParameterID + '" data-test="' + tid + '" data-visit="' + visitCode + '"' +
+            ' onchange="markDirty(this)" onblur="autoSave(this)" /></td>' +
+          '<td style="color:var(--gray-500);font-size:0.8rem;">' + (p.UnitName || '') + '</td>' +
+          '<td style="font-family:var(--font-mono);color:var(--gray-400);font-size:0.78rem;">' + (p.DisplayRange || '—') + '</td>' +
+          '<td><button class="save-row-btn" onclick="saveRow(this)" title="Save"><i class="fas fa-check"></i></button></td>' +
+        '</tr>';
+      }).join('');
+
+      return '<div class="test-tab-content ' + (i === 0 ? '' : 'hidden') + '" id="tab-' + tid + '">' +
+        '<div class="table-wrapper"><table class="result-table">' +
+        '<thead><tr><th>Parameter</th><th style="width:180px;">Result</th><th>Unit</th><th>Ref Range</th><th style="width:44px;"></th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+        '</table></div></div>';
+    }).join('');
+
+    var initials = (d.PatientName || 'P')[0].toUpperCase();
+
+    document.getElementById('resultPanel').innerHTML =
+      '<div class="patient-info-banner">' +
+        '<div class="p-avatar">' + initials + '</div>' +
+        '<div class="p-info-fields">' +
+          '<div class="p-info-item"><div class="p-label">Patient</div><div class="p-val">' + (d.PatientName || '—') + '</div></div>' +
+          '<div class="p-info-item"><div class="p-label">Visit Code</div><div class="p-val" style="font-family:var(--font-mono);color:var(--blue-700);">' + visitCode + '</div></div>' +
+          '<div class="p-info-item"><div class="p-label">Age / Gender</div><div class="p-val">' + (d.Age || '—') + ' ' + (d.AgeType || '') + (d.Gender ? ' · ' + d.Gender : '') + '</div></div>' +
+          '<div class="p-info-item"><div class="p-label">Doctor</div><div class="p-val">' + (d.DoctorName || '—') + '</div></div>' +
+        '</div>' +
+        '<button class="btn btn-success btn-sm" onclick="saveAllResults(\'' + visitCode + '\')"><i class="fas fa-save"></i> Save All</button>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div style="padding:16px 20px 0;">' +
+          '<div class="test-tabs">' + (tabsHtml || '<span class="text-sm text-muted" style="padding:10px;">No tests found</span>') + '</div>' +
+        '</div>' +
+        '<div class="card-body">' +
+          (contentHtml || '<div class="empty-panel"><i class="fas fa-clipboard"></i><p>No parameters to enter.</p></div>') +
+        '</div>' +
+        '<div class="card-footer">' +
+          '<span class="text-xs text-muted"><i class="fas fa-info-circle"></i> Results auto-save on field blur.</span>' +
+          '<div style="flex:1;"></div>' +
+          '<button class="btn btn-primary" onclick="saveAllResults(\'' + visitCode + '\')"><i class="fas fa-save"></i> Save All Results</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.test-tab-content').forEach(function(c) { c.classList.add('hidden'); });
+    document.querySelectorAll('.test-tab').forEach(function(t) { t.classList.remove('active'); });
+    var el = document.getElementById(tabId);
+    if (el) el.classList.remove('hidden');
+    btn.classList.add('active');
+  }
+
+  function markDirty(input) {
+    var btn = input.closest('tr') ? input.closest('tr').querySelector('.save-row-btn') : null;
+    if (btn) btn.classList.remove('saved');
+  }
+
+  function autoSave(input) {
+    doSave(input.dataset.visit, input.dataset.test, input.dataset.param, input.value)
+      .then(function() {
+        var btn = input.closest('tr') ? input.closest('tr').querySelector('.save-row-btn') : null;
+        if (btn) btn.classList.add('saved');
+      });
+  }
+
+  function saveRow(btn) {
+    var row   = btn.closest('tr');
+    var input = row.querySelector('.result-input');
+    doSave(input.dataset.visit, input.dataset.test, input.dataset.param, input.value)
+      .then(function() {
+        btn.classList.add('saved');
+        showToast('Result saved', 'success');
+      });
+  }
+
+  function saveAllResults(visitCode) {
+    var inputs   = document.querySelectorAll('.result-input');
+    var promises = [];
+    inputs.forEach(function(inp) {
+      promises.push(doSave(inp.dataset.visit, inp.dataset.test, inp.dataset.param, inp.value));
+    });
+    Promise.all(promises).then(function() {
+      document.querySelectorAll('.save-row-btn').forEach(function(b) { b.classList.add('saved'); });
+      showToast(inputs.length + ' results saved successfully', 'success');
+    });
+  }
+
+  function doSave(visitCode, testID, paramID, result) {
+    if (!visitCode || !testID || !paramID) return Promise.resolve();
+    return fetch('/api/save-result-patient', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ VisitCode: visitCode, TestID: testID, ParameterID: paramID, Result: result })
+    }).catch(function() {});
+  }
+
+  // Auto-load first patient
+  var firstItem = document.querySelector('.pli');
+  if (firstItem) loadResult(firstItem.dataset.vc, firstItem);
+</script>
+</body>
+</html>

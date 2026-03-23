@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Barcode Printing — LIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .barcode-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: box-shadow var(--transition-base);
+    }
+    .barcode-card:hover { box-shadow: var(--shadow-md); }
+    .barcode-img {
+      width: 120px; height: 50px;
+      object-fit: contain; flex-shrink: 0;
+      background: var(--gray-50); border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gray-300); font-size: 0.7rem;
+    }
+    .barcode-info { flex: 1; min-width: 0; }
+    .barcode-code { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: var(--blue-700); }
+    .barcode-patient { font-size: 0.845rem; font-weight: 600; color: var(--gray-800); }
+    .barcode-meta { font-size: 0.72rem; color: var(--gray-400); margin-top: 2px; }
+    .barcode-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <%- include('partials/sidebar', { activePage: 'barcode', user: typeof user !== 'undefined' ? user : null }) %>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+      <div class="topbar-title">Barcode Printing</div>
+      <div class="topbar-right">
+        <div class="topbar-date"><i class="fas fa-calendar-alt"></i><span id="currentDate"></span></div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">From Date</label>
+          <div style="position:relative;">
+            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">To Date</label>
+          <div style="position:relative;">
+            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="applyFilter()"><i class="fas fa-search"></i> Load</button>
+        <button class="btn btn-secondary" onclick="clearFilter()"><i class="fas fa-times"></i> Clear</button>
+        <div style="flex:1;"></div>
+        <% if (data && data.length > 0) { %>
+        <button class="btn btn-secondary" onclick="window.print()"><i class="fas fa-print"></i> Print All</button>
+        <% } %>
+      </div>
+
+      <% if (data && data.length > 0) { %>
+
+      <!-- Summary bar -->
+      <div class="flex items-center justify-between mb-16">
+        <span class="text-sm text-muted"><strong><%= data.length %></strong> barcodes ready to print</span>
+        <label class="check-wrapper">
+          <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" /> Select All
+        </label>
+      </div>
+
+      <!-- Barcode grid -->
+      <div class="barcode-grid" id="barcodeGrid">
+        <% data.forEach(function(row, i) { %>
+        <div class="barcode-card" id="bc-<%= i %>">
+          <input type="checkbox" class="bc-check" data-idx="<%= i %>" style="flex-shrink:0;" />
+          <div class="barcode-img">
+            <% if (row.BarcodeBase64) { %>
+            <img src="data:image/png;base64,<%= row.BarcodeBase64 %>" alt="barcode" style="width:100%;height:100%;object-fit:contain;" />
+            <% } else { %>
+            <span><i class="fas fa-barcode" style="font-size:1.5rem;"></i></span>
+            <% } %>
+          </div>
+          <div class="barcode-info">
+            <div class="barcode-code"><%= row.VisitCode || '—' %></div>
+            <div class="barcode-patient"><%= row.PatientName || '—' %></div>
+            <div class="barcode-meta">
+              <%= row.TestName || row.ProfileName || '' %>
+              <% if (row.VisitDateTime) { %> · <%= row.VisitDateTime %><% } %>
+            </div>
+          </div>
+          <form action="/preview-barcode" method="POST" target="_blank" style="display:inline;margin:0;">
+            <input type="hidden" name="VisitTransID" value="<%= row.VisitTransID %>" />
+            <input type="hidden" name="TestID" value="<%= row.TestID %>" />
+            <button type="submit" class="btn btn-ghost btn-sm" title="Print Barcode">
+              <i class="fas fa-print"></i>
+            </button>
+          </form>
+        </div>
+        <% }); %>
+      </div>
+
+      <% } else { %>
+      <div class="card">
+        <div class="card-body" style="text-align:center;padding:60px;color:var(--gray-400);">
+          <i class="fas fa-barcode" style="font-size:3rem;display:block;margin-bottom:16px;opacity:0.3;"></i>
+          <div style="font-size:0.95rem;font-weight:600;color:var(--gray-500);margin-bottom:8px;">No barcodes loaded</div>
+          <div class="text-sm text-muted">Use the date filter above to load barcode records for printing.</div>
+        </div>
+      </div>
+      <% } %>
+
+    </main>
+  </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+  // ── Date pickers ──
+  initDatePicker('fromDate');
+  initDatePicker('toDate');
+
+  // ── Filter ──
+  function applyFilter() {
+    var from = document.getElementById('fromDate').value;
+    var to   = document.getElementById('toDate').value;
+    if (!from || !to) { showToast('Please select both From and To dates', 'warning'); return; }
+    window.location.href = '/Barcodeprinting?FromDate=' + encodeURIComponent(from) + '&ToDate=' + encodeURIComponent(to);
+  }
+
+  function clearFilter() {
+    window._dpClear('fromDate');
+    window._dpClear('toDate');
+    window.location.href = '/Barcodeprinting';
+  }
+
+  // ── Select all checkboxes ──
+  function toggleSelectAll(cb) {
+    document.querySelectorAll('.bc-check').forEach(function(c) { c.checked = cb.checked; });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# Node modules (very important)
+node_modules/
+
+# Environment variables (sensitive data)
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Uploads (if user-generated content)
+uploads/
+
+# Build / temp files
+dist/
+build/
+.tmp/
+temp/
+
+# IDE files (VS Code)
+.vscode/
+
+# Optional: ignore lock file if not needed (usually keep it)
+# package-lock.json
