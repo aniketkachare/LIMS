@@ -93,9 +93,19 @@
     .rc-name { font-size: 0.9rem; font-weight: 700; color: var(--gray-900); }
     .rc-meta { font-size: 0.78rem; color: var(--gray-500); margin-top: 3px; display: flex; gap: 14px; flex-wrap: wrap; }
     .rc-meta span { display: flex; align-items: center; gap: 4px; }
-    .rc-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .rc-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
     .results-grid { display: flex; flex-direction: column; gap: 10px; }
     .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .pending-amount {
+      font-weight: 700;
+      color: var(--amber-600);
+      font-family: var(--font-mono);
+    }
+    .paid-amount {
+      font-weight: 700;
+      color: var(--green-700);
+      font-family: var(--font-mono);
+    }
   </style>
 </head>
 <body>
@@ -131,7 +141,8 @@
           <div class="hero-date-group">
             <span class="hero-date-label">From Date</span>
             <div class="hero-date-wrap">
-              <input type="text" id="fromDate" class="hero-date-input" placeholder="DD-MM-YYYY" />
+              <input type="text" id="fromDate" class="hero-date-input" placeholder="DD-MM-YYYY"
+                value="<%= typeof fromDate !== 'undefined' ? fromDate : '' %>" />
             </div>
           </div>
 
@@ -139,7 +150,8 @@
           <div class="hero-date-group">
             <span class="hero-date-label">To Date</span>
             <div class="hero-date-wrap">
-              <input type="text" id="toDate" class="hero-date-input" placeholder="DD-MM-YYYY" />
+              <input type="text" id="toDate" class="hero-date-input" placeholder="DD-MM-YYYY"
+                value="<%= typeof toDate !== 'undefined' ? toDate : '' %>" />
             </div>
           </div>
 
@@ -198,13 +210,36 @@
                 %>" style="font-size:0.68rem;"><%= row.StatusName %></span>
               </span>
               <% } %>
+              <% if (typeof row.BalanceAmount !== 'undefined') { %>
+              <span>
+                <span class="badge <%= row.BalanceAmount > 0 ? 'badge-amber' : 'badge-green' %>" style="font-size:0.68rem;">
+                  <%= row.PaymentStatus %>
+                </span>
+              </span>
+              <span>
+                <i class="fas fa-wallet"></i>
+                <% if (row.BalanceAmount > 0) { %>
+                  <span class="pending-amount">Pending: <%= Number(row.BalanceAmount || 0).toFixed(2) %></span>
+                <% } else { %>
+                  <span class="paid-amount">Paid</span>
+                <% } %>
+              </span>
+              <% } %>
             </div>
           </div>
           <div class="rc-actions" onclick="event.stopPropagation()">
-            <a href="/reports/preview/<%= row.VisitCode %>" target="_blank" class="btn btn-ghost btn-sm" title="Preview">
+            <% if (row.VisitID) { %>
+            <a href="/invoice/<%= row.VisitID %>" target="_blank" class="btn btn-ghost btn-sm" title="Invoice" onclick="event.stopPropagation()">
+              <i class="fas fa-file-invoice"></i>
+            </a>
+            <a href="/invoice/<%= row.VisitID %>?print=1" target="_blank" class="btn btn-ghost btn-sm" title="Print Invoice" onclick="event.stopPropagation()">
+              <i class="fas fa-print"></i>
+            </a>
+            <% } %>
+            <a href="/reports/preview/<%= row.VisitCode %>" target="_blank" class="btn btn-ghost btn-sm" title="Preview" onclick="event.stopPropagation()">
               <i class="fas fa-eye"></i>
             </a>
-            <a href="/reports/download/<%= row.VisitCode %>" class="btn btn-ghost btn-sm" title="Download PDF">
+            <a href="/reports/download/<%= row.VisitCode %>" class="btn btn-ghost btn-sm" title="Download PDF" onclick="event.stopPropagation()">
               <i class="fas fa-download"></i>
             </a>
           </div>

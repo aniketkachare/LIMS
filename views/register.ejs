@@ -40,6 +40,15 @@
     .amount-value { font-weight: 600; color: var(--gray-800); font-family: var(--font-mono); }
     .amount-row.total .amount-label { font-weight: 700; color: var(--gray-800); }
     .amount-row.total .amount-value { color: var(--blue-700); font-size: 1rem; }
+    .success-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .success-actions .btn {
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
@@ -59,11 +68,21 @@
     <main class="page-content">
 
       <% if (queryParams && queryParams.success) { %>
-      <div class="alert alert-success" data-auto-dismiss>
+      <div class="alert alert-success">
         <i class="fas fa-check-circle"></i>
         <div>Patient registered successfully!
           <% if (queryParams.patientID) { %><strong> Patient ID: <%= queryParams.patientID %></strong><% } %>
           <% if (queryParams.visitID) { %> | <strong>Visit ID: <%= queryParams.visitID %></strong><% } %>
+          <% if (queryParams.invoiceUrl) { %>
+          <div class="success-actions">
+            <a href="<%= queryParams.invoiceUrl %>" class="btn btn-secondary">
+              <i class="fas fa-file-invoice"></i> Invoice
+            </a>
+            <a href="<%= queryParams.printInvoiceUrl %>" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+              <i class="fas fa-print"></i> Print Invoice
+            </a>
+          </div>
+          <% } %>
         </div>
       </div>
       <% } %>
@@ -263,6 +282,7 @@
                 <div class="autocomplete-wrapper">
                   <input type="text" id="centerInput" class="form-control" placeholder="Search center..." autocomplete="off" />
                   <input type="hidden" name="centerId" id="centerIdInput" />
+                  <input type="hidden" name="centerName" id="centerNameInput" />
                   <div class="autocomplete-dropdown" id="centerDropdown"></div>
                 </div>
               </div>
@@ -272,6 +292,7 @@
                 <div class="autocomplete-wrapper">
                   <input type="text" id="referInput" class="form-control" placeholder="Search referral..." autocomplete="off" />
                   <input type="hidden" name="referedId" id="referIdInput" />
+                  <input type="hidden" name="referName" id="referNameInput" />
                   <div class="autocomplete-dropdown" id="referDropdown"></div>
                 </div>
               </div>
@@ -281,6 +302,7 @@
                 <div class="autocomplete-wrapper">
                   <input type="text" id="doctorInput" class="form-control" placeholder="Search doctor..." autocomplete="off" />
                   <input type="hidden" name="doctorId" id="doctorIdInput" />
+                  <input type="hidden" name="doctorName" id="doctorNameInput" />
                   <div class="autocomplete-dropdown" id="doctorDropdown"></div>
                 </div>
               </div>
@@ -300,7 +322,9 @@
                 <span id="tagsPlaceholder" style="color:var(--gray-300);font-size:0.845rem;padding:2px 4px;">No tests added yet</span>
               </div>
               <input type="hidden" name="selectedTests" id="selectedTestsInput" />
-<input type="hidden" name="selectedProfiles" id="selectedProfilesInput" />
+              <input type="hidden" name="selectedProfiles" id="selectedProfilesInput" />
+              <input type="hidden" name="selectedTestNames" id="selectedTestNamesInput" />
+              <input type="hidden" name="selectedProfileNames" id="selectedProfileNamesInput" />
 <span id="testError" style="display:none;color:var(--red-500);font-size:0.72rem;margin-top:4px;">
   <i class="fas fa-exclamation-circle"></i> At least one test or profile is required.
 </span>
@@ -514,6 +538,8 @@ document.addEventListener('click', function(e) {
   function updateHiddenInputs() {
     document.getElementById('selectedTestsInput').value    = Object.keys(selectedTests).join(',');
     document.getElementById('selectedProfilesInput').value = Object.keys(selectedProfiles).join(',');
+    document.getElementById('selectedTestNamesInput').value = Object.values(selectedTests).map(function(item) { return item.name; }).join(',');
+    document.getElementById('selectedProfileNamesInput').value = Object.values(selectedProfiles).map(function(item) { return item.name; }).join(',');
   }
 
   function addTag(id, name, type) {
@@ -585,15 +611,21 @@ document.addEventListener('click', function(e) {
   testInput.addEventListener('blur', function() { setTimeout(function(){ testDropdown.classList.remove('open'); }, 150); });
 
   // Generic autocomplete
-  function setupAC(inputId, dropdownId, url, idField, nameField, hiddenId) {
+  function setupAC(inputId, dropdownId, url, idField, nameField, hiddenId, hiddenNameId) {
     var inp    = document.getElementById(inputId);
     var drop   = document.getElementById(dropdownId);
     var hidden = document.getElementById(hiddenId);
+    var hiddenName = hiddenNameId ? document.getElementById(hiddenNameId) : null;
     var timer;
     inp.addEventListener('input', function() {
       clearTimeout(timer);
       var q = this.value.trim();
-      if (!q) { drop.classList.remove('open'); hidden.value=''; return; }
+      if (!q) {
+        drop.classList.remove('open');
+        hidden.value = '';
+        if (hiddenName) hiddenName.value = '';
+        return;
+      }
       timer = setTimeout(function() {
         fetch(url + '?query=' + encodeURIComponent(q))
           .then(function(r){ return r.json(); })
@@ -608,6 +640,7 @@ document.addEventListener('click', function(e) {
                 e.preventDefault();
                 inp.value    = item[nameField];
                 hidden.value = item[idField];
+                if (hiddenName) hiddenName.value = item[nameField];
                 drop.classList.remove('open');
               });
               drop.appendChild(div);
@@ -619,9 +652,9 @@ document.addEventListener('click', function(e) {
     inp.addEventListener('blur', function() { setTimeout(function(){ drop.classList.remove('open'); }, 150); });
   }
 
-  setupAC('centerInput', 'centerDropdown', '/suggest-lab-names',    'CenterID', 'CenterName', 'centerIdInput');
-  setupAC('referInput',  'referDropdown',  '/suggest-refer-names',  'ReferID',  'ReferName',  'referIdInput');
-  setupAC('doctorInput', 'doctorDropdown', '/suggest-doctor-names', 'DoctorID', 'DoctorName', 'doctorIdInput');
+  setupAC('centerInput', 'centerDropdown', '/suggest-lab-names',    'CenterID', 'CenterName', 'centerIdInput', 'centerNameInput');
+  setupAC('referInput',  'referDropdown',  '/suggest-refer-names',  'ReferID',  'ReferName',  'referIdInput', 'referNameInput');
+  setupAC('doctorInput', 'doctorDropdown', '/suggest-doctor-names', 'DoctorID', 'DoctorName', 'doctorIdInput', 'doctorNameInput');
     // ── Phone validation ──
   function validatePhone(input) {
     var err = document.getElementById('phoneError');
@@ -662,6 +695,28 @@ document.addEventListener('click', function(e) {
       // Scroll to tests section
       container.scrollIntoView({ behavior: 'smooth', block: 'center' });
       showToast('Please add at least one test or profile', 'error');
+      return false;
+    }
+
+    var centerId = parseInt(document.getElementById('centerIdInput').value, 10);
+    var referId = parseInt(document.getElementById('referIdInput').value, 10);
+    var doctorId = parseInt(document.getElementById('doctorIdInput').value, 10);
+    if (!centerId || centerId <= 0) {
+      e.preventDefault();
+      showToast('Please select a valid Center / Lab', 'error');
+      document.getElementById('centerInput').focus();
+      return false;
+    }
+    if (!referId || referId <= 0) {
+      e.preventDefault();
+      showToast('Please select a valid Referred By', 'error');
+      document.getElementById('referInput').focus();
+      return false;
+    }
+    if (!doctorId || doctorId <= 0) {
+      e.preventDefault();
+      showToast('Please select a valid Doctor', 'error');
+      document.getElementById('doctorInput').focus();
       return false;
     }
 

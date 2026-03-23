@@ -151,6 +151,223 @@ function parseDDMMYYYY(str) {
   return y && m && d ? `${y}-${m}-${d}` : null;
 }
 
+function formatDDMMYYYY(dateVal) {
+  if (!dateVal) return '';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+function addDays(dateVal, days) {
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function ddmmyyyyToSortable(str) {
+  const parsed = parseDDMMYYYY(str);
+  return parsed || '';
+}
+
+function formatInvoiceDate(dateVal) {
+  if (!dateVal) return '';
+  return moment(dateVal).format('DD-MMM-YYYY hh:mm A');
+}
+
+function splitNames(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
+  return String(value).split(',').map(v => v.trim()).filter(Boolean);
+}
+
+async function loadResultEntryPatientList(pool, fromDate, toDate) {
+  try {
+    let accessionResult;
+    if (fromDate && toDate) {
+      accessionResult = await pool.request()
+        .input('FromDate', mssql.Date, fromDate)
+        .input('ToDate', mssql.Date, toDate)
+        .execute('GetAccession');
+    } else {
+      accessionResult = await pool.request().execute('GetAccession');
+    }
+
+    const accessionRows = (accessionResult.recordset || [])
+      .map(row => ({
+        ...row,
+        StatusName: row.StatusName || row.ActionName || ''
+      }))
+      .filter(row => {
+        const status = String(row.StatusName || '').toLowerCase();
+        return status.includes('sample collect') || status.includes('accession done');
+      });
+
+    const visitMap = new Map();
+    accessionRows.forEach(row => {
+      if (!row.VisitCode || visitMap.has(row.VisitCode)) return;
+      visitMap.set(row.VisitCode, row);
+    });
+
+    if (visitMap.size > 0) {
+      return Array.from(visitMap.values());
+    }
+  } catch (err) {
+    console.error('Result patient list accession lookup failed:', {
+      fromDate,
+      toDate,
+      message: err.message
+    });
+  }
+
+  if (fromDate && toDate) {
+    const r = await pool.request()
+      .input('FromDate', mssql.Date, fromDate)
+      .input('ToDate', mssql.Date, toDate)
+      .execute('GetResultPatientList');
+    return r.recordset || [];
+  }
+
+  const r = await pool.request().execute('GetResultPatientList');
+  return r.recordset || [];
+}
+
+async function getInvoiceData(req, visitID) {
+  const sessionInvoice = req.session.lastRegistration;
+  if (sessionInvoice && String(sessionInvoice.visitID) === String(visitID)) {
+    return sessionInvoice;
+  }
+
+  const pool = await mssql.connect(config);
+  const visitResult = await pool.request()
+    .input('visitID', mssql.Int, visitID)
+    .query(`
+      SELECT TOP 1
+        VisitID,
+        PatientID,
+        VisitCode,
+        VisitDateTime,
+        PaymentMode,
+        ISNULL(Gross, 0) AS GrossAmount,
+        ISNULL(VisitingCharges, 0) AS VisitingCharges,
+        ISNULL(DiscountAmount, 0) AS DiscountAmount,
+        ISNULL(Net, 0) AS NetAmount,
+        ISNULL(AmountPaid, 0) AS PaidAmount,
+        ISNULL(BalanceAmt, 0) AS BalanceAmount
+      FROM Visit v
+      WHERE VisitID = @visitID
+    `);
+
+  const row = visitResult.recordset[0];
+  if (!row) return null;
+
+  let patientName = '';
+  let gender = '';
+  let age = '';
+  let ageType = '';
+  let mobileNumber = '';
+  let paymentModeName = '';
+  let selectedItems = [];
+
+  try {
+    const paymentModeResult = await pool.request()
+      .input('payModeID', mssql.Int, row.PaymentMode || null)
+      .query('SELECT TOP 1 PaymentMode FROM Mst_Paymentmode WHERE PayModeID = @payModeID');
+    paymentModeName = paymentModeResult.recordset[0]?.PaymentMode || '';
+  } catch (err) {
+    console.error('Invoice payment mode lookup error:', {
+      visitID,
+      paymentMode: row.PaymentMode,
+      message: err.message
+    });
+  }
+
+  try {
+    const patientResult = await pool.request()
+      .input('patientID', mssql.Int, row.PatientID)
+      .query(`
+        SELECT TOP 1
+          PatientName,
+          Gender,
+          Age,
+          AgeType,
+          MobileNo
+        FROM Visit_patient
+        WHERE PatientID = @patientID
+      `);
+    const patientRow = patientResult.recordset?.[0];
+    if (patientRow) {
+      patientName = patientRow.PatientName || '';
+      gender = patientRow.Gender || '';
+      age = patientRow.Age || '';
+      ageType = patientRow.AgeType || '';
+      mobileNumber = patientRow.MobileNo || '';
+    }
+  } catch (err) {
+    console.error('Invoice patient lookup error:', {
+      visitID,
+      patientID: row.PatientID,
+      message: err.message
+    });
+  }
+
+  try {
+    const itemsResult = await pool.request()
+      .input('visitID', mssql.Int, visitID)
+      .query(`
+        SELECT
+          CASE
+            WHEN vt.TestID IS NOT NULL THEN 'Test'
+            WHEN vt.ProfileTestsID IS NOT NULL THEN 'Profile'
+            ELSE 'Item'
+          END AS ItemType,
+          COALESCE(mt.TestName, mp.ProfileName) AS ItemName
+        FROM Visit_Trans vt
+        LEFT JOIN Mst_Test mt ON mt.TestID = vt.TestID
+        LEFT JOIN Mst_Profiles mp ON mp.ProfileID = vt.ProfileTestsID
+        WHERE vt.VisitID = @visitID
+      `);
+
+    selectedItems = (itemsResult.recordset || [])
+      .filter(item => item.ItemName)
+      .map(item => ({
+        type: item.ItemType,
+        name: item.ItemName
+      }));
+  } catch (err) {
+    console.error('Invoice items lookup error:', {
+      visitID,
+      message: err.message
+    });
+  }
+
+  return {
+    patientID: row.PatientID,
+    visitID: row.VisitID,
+    visitCode: row.VisitCode,
+    registrationDateTime: row.VisitDateTime,
+    patientName,
+    gender,
+    age,
+    ageType,
+    mobileNumber,
+    paymentModeName,
+    centerName: '',
+    referName: '',
+    doctorName: '',
+    selectedItems,
+    grossAmount: Number(row.GrossAmount || 0),
+    visitingCharges: Number(row.VisitingCharges || 0),
+    discountAmount: Number(row.DiscountAmount || 0),
+    netAmount: Number(row.NetAmount || 0),
+    paidAmount: Number(row.PaidAmount || 0),
+    balanceAmount: Number(row.BalanceAmount || 0)
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  ROUTES
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -184,7 +401,9 @@ app.get('/register', requireAuth, (req, res) => {
   const queryParams = {
     success: q.success === 'true',
     patientID: q.patientID || null,
-    visitID: q.visitID || null
+    visitID: q.visitID || null,
+    invoiceUrl: q.visitID ? `/invoice/${q.visitID}` : null,
+    printInvoiceUrl: q.visitID ? `/invoice/${q.visitID}?print=1` : null
   };
   new mssql.Request().query('SELECT * FROM Mst_Salutation', (err, result) => {
     if (err) return res.status(500).render('error', { error: err });
@@ -295,6 +514,9 @@ app.post('/submit', requireAuth, upload.fields([{ name: 'trfFiles', maxCount: 10
     const paid = parseFloat(combinedData.paidAmount || 0);
 
     const age = parseInt(combinedData.age, 10);
+    const centerId = parseInt(combinedData.centerId, 10);
+    const referedId = parseInt(combinedData.referedId, 10);
+    const doctorId = parseInt(combinedData.doctorId, 10);
 
     const numericErrors = [];
     if (Number.isNaN(age) || age < 0 || age > 150) numericErrors.push('Age must be a number between 0 and 150');
@@ -302,9 +524,12 @@ app.post('/submit', requireAuth, upload.fields([{ name: 'trfFiles', maxCount: 10
     if (Number.isNaN(visiting) || visiting < 0) numericErrors.push('Visiting charges must be a non-negative number');
     if (Number.isNaN(discount) || discount < 0) numericErrors.push('Discount amount must be a non-negative number');
     if (Number.isNaN(paid) || paid < 0) numericErrors.push('Paid amount must be a non-negative number');
+    if (Number.isNaN(centerId) || centerId <= 0) numericErrors.push('Center / Lab is required');
+    if (Number.isNaN(referedId) || referedId <= 0) numericErrors.push('Referred By is required');
+    if (Number.isNaN(doctorId) || doctorId <= 0) numericErrors.push('Doctor is required');
 
     if (numericErrors.length > 0) {
-      return res.status(400).json({ error: numericErrors.join('; ') });
+      return res.status(400).render('error', { error: new Error(numericErrors.join('; ')) });
     }
 
     const totalGross = gross + visiting;
@@ -312,6 +537,10 @@ app.post('/submit', requireAuth, upload.fields([{ name: 'trfFiles', maxCount: 10
     const net = totalGross - discount;
     if (paid > net) return res.status(400).json({ error: 'Paid cannot exceed net amount.' });
     const balance = net - paid;
+    const selectedItems = [
+      ...splitNames(combinedData.selectedTestNames).map(name => ({ type: 'Test', name })),
+      ...splitNames(combinedData.selectedProfileNames).map(name => ({ type: 'Profile', name }))
+    ];
 
     const req_ = new mssql.Request(transaction);
   
@@ -335,9 +564,9 @@ app.post('/submit', requireAuth, upload.fields([{ name: 'trfFiles', maxCount: 10
       .input('visitCode', mssql.NVarChar, combinedData.visitNo)
       .input('visitDateTime', mssql.DateTime, combinedData.registrationDateTime)
       .input('patientID', mssql.Int, patientID)
-      .input('centerId', mssql.Int, combinedData.centerId)
-      .input('referedId', mssql.Int, combinedData.referedId)
-      .input('doctorId', mssql.Int, combinedData.doctorId)
+      .input('centerId', mssql.Int, centerId)
+      .input('referedId', mssql.Int, referedId)
+      .input('doctorId', mssql.Int, doctorId)
       .input('discountAmount', mssql.Decimal(10,2), discount)
       .input('grossAmount', mssql.Decimal(10,2), totalGross)
       .input('visitingCharges', mssql.Decimal(10,2), visiting)
@@ -420,11 +649,54 @@ app.post('/submit', requireAuth, upload.fields([{ name: 'trfFiles', maxCount: 10
     await histReq.execute('InsertPatientHistory');
 
     await transaction.commit();
+    req.session.lastRegistration = {
+      patientID,
+      visitID,
+      visitCode: combinedData.visitNo,
+      registrationDateTime: combinedData.registrationDateTime,
+      patientName: combinedData.patientName,
+      gender: combinedData.gender,
+      age: combinedData.age,
+      ageType: combinedData.ageType,
+      mobileNumber: mobileNumber,
+      paymentModeName: combinedData.paymentModeName || '',
+      centerName: combinedData.centerName || '',
+      referName: combinedData.referName || '',
+      doctorName: combinedData.doctorName || '',
+      selectedItems,
+      grossAmount: totalGross,
+      visitingCharges: visiting,
+      discountAmount: discount,
+      netAmount: net,
+      paidAmount: paid,
+      balanceAmount: balance
+    };
     delete req.session.registerData;
     res.redirect(`/register?success=true&patientID=${patientID}&visitID=${visitID}`);
   } catch (err) {
     await transaction.rollback().catch(() => {});
     console.error('Submit error:', err);
+    res.status(500).render('error', { error: err });
+  }
+});
+
+app.get('/invoice/:visitID', requireAuth, async (req, res) => {
+  try {
+    const invoice = await getInvoiceData(req, req.params.visitID);
+    if (!invoice) return res.status(404).render('error', { error: new Error('Invoice data not found for this visit.') });
+    res.render('invoice', {
+      invoice,
+      formatInvoiceDate,
+      autoPrint: req.query.print === '1',
+      user: req.session.user
+    });
+  } catch (err) {
+    console.error('Invoice render error:', {
+      visitID: req.params.visitID,
+      query: req.query,
+      message: err.message,
+      stack: err.stack
+    });
     res.status(500).render('error', { error: err });
   }
 });
@@ -522,17 +794,31 @@ app.get('/collection', requireAuth, async (req, res) => {
       const fFrom = parseDDMMYYYY(FromDate), fTo = parseDDMMYYYY(ToDate);
       result = await pool.request().input('FromDate', mssql.Date, fFrom).input('ToDate', mssql.Date, fTo).execute('GetCollection');
     } else {
-      result = await pool.request().execute('GetCollection');
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      result = await pool.request()
+        .input('FromDate', mssql.Date, yesterday)
+        .input('ToDate', mssql.Date, today)
+        .execute('GetCollection');
     }
     const data = result.recordset.map(item => {
       if (item.VisitDateTime) {
         const d = new Date(item.VisitDateTime);
         item.VisitDateTime = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
       }
+      item.StatusName = item.StatusName || item.ActionName || 'Pending';
       return item;
     });
-    res.render('collection', { data, user: req.session.user });
+    const defaultFromDate = FromDate || formatDDMMYYYY(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const defaultToDate = ToDate || formatDDMMYYYY(new Date());
+    res.render('collection', { data, user: req.session.user, fromDate: defaultFromDate, toDate: defaultToDate });
   } catch (err) {
+    console.error('Collection page error:', {
+      query: req.query,
+      message: err.message,
+      stack: err.stack
+    });
     res.status(500).render('error', { error: err });
   }
 });
@@ -569,17 +855,33 @@ app.get('/Accession', requireAuth, async (req, res) => {
       const fFrom = parseDDMMYYYY(FromDate), fTo = parseDDMMYYYY(ToDate);
       result = await pool.request().input('FromDate', mssql.Date, fFrom).input('ToDate', mssql.Date, fTo).execute('GetAccession');
     } else {
-      result = await pool.request().execute('GetAccession');
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      result = await pool.request()
+        .input('FromDate', mssql.Date, yesterday)
+        .input('ToDate', mssql.Date, today)
+        .execute('GetAccession');
     }
     const data = result.recordset.map(item => {
       if (item.VisitDateTime) {
         const d = new Date(item.VisitDateTime);
         item.VisitDateTime = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
       }
+      item.StatusName = item.StatusName || item.ActionName || 'Pending';
       return item;
     });
-    res.render('Accession', { data, user: req.session.user });
-  } catch (err) { res.status(500).render('error', { error: err }); }
+    const defaultFromDate = FromDate || formatDDMMYYYY(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const defaultToDate = ToDate || formatDDMMYYYY(new Date());
+    res.render('Accession', { data, user: req.session.user, fromDate: defaultFromDate, toDate: defaultToDate });
+  } catch (err) {
+    console.error('Accession page error:', {
+      query: req.query,
+      message: err.message,
+      stack: err.stack
+    });
+    res.status(500).render('error', { error: err });
+  }
 });
 
 app.post('/update-accession-action', requireAuth, async (req, res) => {
@@ -609,13 +911,16 @@ app.get('/Barcodeprinting', requireAuth, async (req, res) => {
   const { FromDate, ToDate } = req.query;
   try {
     const pool = await mssql.connect(config);
-    let result;
-    if (FromDate && ToDate) {
-      const fFrom = parseDDMMYYYY(FromDate), fTo = parseDDMMYYYY(ToDate);
-      result = await pool.request().input('FromDate', mssql.Date, fFrom).input('ToDate', mssql.Date, fTo).execute('GetBarcodePrinting');
-    } else {
-      result = await pool.request().execute('GetBarcodePrinting');
-    }
+    const defaultFromDate = FromDate || formatDDMMYYYY(new Date());
+    const defaultToDate = ToDate || formatDDMMYYYY(new Date());
+    const parsedFrom = parseDDMMYYYY(defaultFromDate) || defaultFromDate;
+    const parsedTo = parseDDMMYYYY(defaultToDate) || defaultToDate;
+    const widenedFrom = addDays(parsedFrom, -1) || parsedFrom;
+    const result = await pool.request()
+      .input('FromDate', mssql.Date, widenedFrom)
+      .input('ToDate', mssql.Date, parsedTo)
+      .execute('GetBarcodePrinting');
+
     const data = result.recordset.map(item => {
       if (item.VisitDateTime) {
         const d = new Date(item.VisitDateTime);
@@ -623,8 +928,26 @@ app.get('/Barcodeprinting', requireAuth, async (req, res) => {
       }
       return item;
     });
-    res.render('Barcodeprinting', { data, user: req.session.user });
-  } catch (err) { res.status(500).render('error', { error: err }); }
+    const filteredData = data.filter(item => {
+      if (!item.VisitDateTime) return false;
+      const itemDate = parseDDMMYYYY(item.VisitDateTime);
+      return itemDate && itemDate >= parsedFrom && itemDate <= parsedTo;
+    });
+    res.render('Barcodeprinting', {
+      data: filteredData,
+      user: req.session.user,
+      fromDate: defaultFromDate,
+      toDate: defaultToDate
+    });
+  } catch (err) {
+    console.error('Barcode page error:', {
+      route: '/Barcodeprinting',
+      query: req.query,
+      message: err.message,
+      stack: err.stack
+    });
+    res.status(500).render('error', { error: err });
+  }
 });
 
 app.post('/preview-barcode', requireAuth, async (req, res) => {
@@ -652,23 +975,76 @@ app.get('/Search', requireAuth, async (req, res) => {
   const { FromDate, ToDate } = req.query;
   try {
     const pool = await mssql.connect(config);
-    let result;
-    if (FromDate && ToDate) {
-      const fFrom = parseDDMMYYYY(FromDate) || FromDate;
-      const fTo = parseDDMMYYYY(ToDate) || ToDate;
-      result = await pool.request().input('FromDate', mssql.Date, fFrom).input('ToDate', mssql.Date, fTo).execute('GetSearch');
-    } else {
-      result = await pool.request().execute('GetSearch');
-    }
+    const defaultFromDate = FromDate || formatDDMMYYYY(new Date());
+    const defaultToDate = ToDate || formatDDMMYYYY(new Date());
+    const parsedFrom = parseDDMMYYYY(defaultFromDate) || defaultFromDate;
+    const parsedTo = parseDDMMYYYY(defaultToDate) || defaultToDate;
+    const widenedFrom = addDays(parsedFrom, -1) || parsedFrom;
+    const widenedTo = parsedTo;
+    const result = await pool.request()
+      .input('FromDate', mssql.Date, widenedFrom)
+      .input('ToDate', mssql.Date, widenedTo)
+      .execute('GetSearch');
     const data = result.recordset.map(item => {
       if (item.VisitDateTime) {
         const d = new Date(item.VisitDateTime);
         item.VisitDateTime = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
       }
       return item;
+    }).filter(item => {
+      if (!item.VisitDateTime) return false;
+      const rowDate = ddmmyyyyToSortable(item.VisitDateTime);
+      const fromDate = ddmmyyyyToSortable(defaultFromDate);
+      const toDate = ddmmyyyyToSortable(defaultToDate);
+      return !!rowDate && !!fromDate && !!toDate && rowDate >= fromDate && rowDate <= toDate;
     });
-    res.render('Search', { data, user: req.session.user });
-  } catch (err) { res.status(500).render('error', { error: err }); }
+
+    const visitCodes = Array.from(new Set(
+      data.map(item => item.VisitCode).filter(Boolean)
+    ));
+
+    if (visitCodes.length) {
+      const billingReq = pool.request();
+      const placeholders = visitCodes.map((code, index) => {
+        const key = `visitCode${index}`;
+        billingReq.input(key, mssql.VarChar, code);
+        return `@${key}`;
+      });
+
+      const billingResult = await billingReq.query(`
+        SELECT
+          VisitID,
+          VisitCode,
+          ISNULL(Net, 0) AS NetAmount,
+          ISNULL(AmountPaid, 0) AS PaidAmount,
+          ISNULL(BalanceAmt, 0) AS BalanceAmount
+        FROM Visit
+        WHERE VisitCode IN (${placeholders.join(', ')})
+      `);
+
+      const billingMap = new Map(
+        billingResult.recordset.map(row => [row.VisitCode, row])
+      );
+
+      data.forEach(item => {
+        const billing = billingMap.get(item.VisitCode);
+        item.VisitID = billing?.VisitID || null;
+        item.NetAmount = Number(billing?.NetAmount || 0);
+        item.PaidAmount = Number(billing?.PaidAmount || 0);
+        item.BalanceAmount = Number(billing?.BalanceAmount || 0);
+        item.PaymentStatus = item.BalanceAmount > 0 ? 'Pending' : 'Paid';
+      });
+    }
+
+    res.render('Search', { data, user: req.session.user, fromDate: defaultFromDate, toDate: defaultToDate });
+  } catch (err) {
+    console.error('Search page error:', {
+      query: req.query,
+      message: err.message,
+      stack: err.stack
+    });
+    res.status(500).render('error', { error: err });
+  }
 });
 
 // ─── Result Entry ─────────────────────────────────────────────────────────────
@@ -676,14 +1052,11 @@ app.get('/result', requireAuth, async (req, res) => {
   try {
     const pool = await mssql.connect(config);
     let { FromDate, ToDate } = req.query;
-    let patientList = [];
-    if (FromDate && ToDate) {
-      const r = await pool.request().input('FromDate', mssql.Date, FromDate).input('ToDate', mssql.Date, ToDate).execute('GetResultPatientList');
-      patientList = r.recordset || [];
-    } else {
-      const r = await pool.request().execute('GetResultPatientList');
-      patientList = r.recordset || [];
-    }
+    const defaultFrom = FromDate || formatDDMMYYYY(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const defaultTo = ToDate || formatDDMMYYYY(new Date());
+    const filterFrom = parseDDMMYYYY(defaultFrom) || defaultFrom;
+    const filterTo = parseDDMMYYYY(defaultTo) || defaultTo;
+    const patientList = await loadResultEntryPatientList(pool, filterFrom, filterTo);
     let resultDetails = null, resultTests = [], distinctTests = [];
     if (patientList.length > 0) {
       const r = await pool.request().input('VisitCode', mssql.VarChar, patientList[0].VisitCode).execute('GetPatientAndResultDetails');
@@ -691,8 +1064,13 @@ app.get('/result', requireAuth, async (req, res) => {
       resultTests = r.recordsets[1] || [];
       distinctTests = Array.from(new Map(resultTests.map(t => [t.TestID, t.TestName])).entries()).map(([TestID, TestName]) => ({ TestID, TestName }));
     }
-    res.render('result', { labName: 'HLL Lab', fromDate: FromDate || '', toDate: ToDate || '', patientList, resultDetails, resultTests, distinctTests, user: req.session.user });
+    res.render('result', { labName: 'HLL Lab', fromDate: defaultFrom, toDate: defaultTo, patientList, resultDetails, resultTests, distinctTests, user: req.session.user });
   } catch (err) {
+    console.error('Result page error:', {
+      query: req.query,
+      message: err.message,
+      stack: err.stack
+    });
     res.render('result', { labName: '', fromDate: '', toDate: '', patientList: [], resultDetails: null, resultTests: [], distinctTests: [], user: req.session.user });
   }
 });
@@ -701,11 +1079,57 @@ app.get('/result/details/:visitCode', requireAuth, async (req, res) => {
   try {
     const pool = await mssql.connect(config);
     const r = await pool.request().input('VisitCode', mssql.VarChar, req.params.visitCode).execute('GetPatientAndResultDetails');
-    const resultDetails = r.recordsets[0][0];
+    let resultDetails = r.recordsets[0][0];
     const resultTests = r.recordsets[1] || [];
-    if (!resultDetails) return res.status(404).json({ success: false, message: 'Not found' });
+    if (!resultDetails && resultTests.length > 0) {
+      const fallback = await pool.request()
+        .input('VisitCode', mssql.VarChar, req.params.visitCode)
+        .query(`
+          SELECT TOP 1
+            V.VisitCode,
+            P.PatientName,
+            P.Gender,
+            P.Age,
+            CASE
+              WHEN P.AgeType = 'Y' THEN 'Year'
+              WHEN P.AgeType = 'M' THEN 'Month'
+              WHEN P.AgeType = 'D' THEN 'Day'
+              ELSE P.AgeType
+            END AS AgeType,
+            D.DoctorName,
+            V.Net AS [Total Amount],
+            V.AmountPaid AS [Paid Amount],
+            V.BalanceAmt AS [Balance Amount]
+          FROM Visit V
+          INNER JOIN Visit_Patient P ON P.PatientID = V.PatientID
+          LEFT JOIN Mst_Doctor D ON D.DoctorID = V.DoctorID
+          WHERE V.VisitCode = @VisitCode
+        `);
+      resultDetails = fallback.recordset[0] || null;
+    }
+    if (!resultDetails && resultTests.length === 0) {
+      return res.status(404).json({ success: false, message: 'Not found' });
+    }
+    if (!resultDetails && resultTests.length > 0) {
+      const first = resultTests[0];
+      resultDetails = {
+        VisitCode: first.VisitCode,
+        PatientName: '',
+        Gender: '',
+        Age: first.Age || '',
+        AgeType: first.AgeType || '',
+        DoctorName: ''
+      };
+    }
     res.json({ success: true, resultDetails, resultTests });
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+  } catch (err) {
+    console.error('Result details error:', {
+      visitCode: req.params.visitCode,
+      message: err.message,
+      stack: err.stack
+    });
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -761,17 +1185,43 @@ app.get('/reports', requireAuth, async (req, res) => {
   const { fromDate, toDate } = req.query;
   try {
     const pool = await mssql.connect(config);
-    const result = await pool.request().input('FromDate', mssql.Date, fromDate || null).input('ToDate', mssql.Date, toDate || null).execute('Getreportforprint');
-    res.render('report-list', { patients: result.recordset, user: req.session.user });
-  } catch (err) { res.render('report-list', { patients: [], user: req.session.user }); }
+    const defaultFrom = fromDate || formatDDMMYYYY(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const defaultTo = toDate || formatDDMMYYYY(new Date());
+    const sqlFrom = parseDDMMYYYY(defaultFrom) || defaultFrom;
+    const sqlTo = parseDDMMYYYY(defaultTo) || defaultTo;
+    const result = await pool.request()
+      .input('FromDate', mssql.Date, sqlFrom)
+      .input('ToDate', mssql.Date, sqlTo)
+      .execute('Getreportforprint');
+    const patients = (result.recordset || []).map(row => ({
+      ...row,
+      StatusName: row.StatusName || row.ActionName || 'Pending'
+    }));
+    res.render('report-list', { patients, user: req.session.user, fromDate: defaultFrom, toDate: defaultTo });
+  } catch (err) {
+    console.error('Reports page error:', {
+      query: req.query,
+      message: err.message,
+      stack: err.stack
+    });
+    res.render('report-list', { patients: [], user: req.session.user, fromDate: '', toDate: '' });
+  }
 });
 
 app.get('/reports/data', requireAuth, async (req, res) => {
   const { fromDate, toDate } = req.query;
   try {
     const pool = await mssql.connect(config);
-    const result = await pool.request().input('FromDate', mssql.VarChar, fromDate).input('ToDate', mssql.VarChar, toDate).execute('Getreportforprint');
-    res.json(result.recordset);
+    const sqlFrom = parseDDMMYYYY(fromDate) || fromDate || null;
+    const sqlTo = parseDDMMYYYY(toDate) || toDate || null;
+    const result = await pool.request()
+      .input('FromDate', mssql.Date, sqlFrom)
+      .input('ToDate', mssql.Date, sqlTo)
+      .execute('Getreportforprint');
+    res.json((result.recordset || []).map(row => ({
+      ...row,
+      StatusName: row.StatusName || row.ActionName || 'Pending'
+    })));
   } catch (err) { res.status(500).json({ error: 'Failed to fetch' }); }
 });
 

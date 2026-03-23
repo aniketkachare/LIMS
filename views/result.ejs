@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Result Entry — LIMS</title>
+  <title>Result Entry - LIMS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -11,13 +11,16 @@
   <style>
     .result-layout {
       display: grid;
-      grid-template-columns: 280px 1fr;
+      grid-template-columns: 300px 1fr;
       gap: 20px;
       align-items: start;
     }
-    @media (max-width: 900px) { .result-layout { grid-template-columns: 1fr; } }
-
-    .patient-list-panel {
+    @media (max-width: 1080px) {
+      .result-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+    .result-sidebar {
       background: var(--white);
       border: 1px solid var(--gray-200);
       border-radius: var(--radius-lg);
@@ -25,90 +28,280 @@
       position: sticky;
       top: 80px;
     }
-    .panel-header {
-      padding: 12px 16px;
+    .result-sidebar-head {
+      padding: 14px 16px;
       border-bottom: 1px solid var(--gray-100);
-      display: flex; align-items: center; gap: 8px;
       background: var(--gray-50);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
     }
-    .panel-header h4 { font-size: 0.845rem; font-weight: 700; color: var(--gray-700); flex: 1; margin: 0; }
-    .patient-list { max-height: 520px; overflow-y: auto; }
-    .patient-list::-webkit-scrollbar { width: 4px; }
-    .patient-list::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
-
-    .pli {
-      padding: 11px 16px;
+    .result-sidebar-list {
+      max-height: 620px;
+      overflow-y: auto;
+    }
+    .result-sidebar-item {
+      padding: 14px 16px;
       border-bottom: 1px solid var(--gray-50);
       cursor: pointer;
-      transition: background var(--transition-fast);
+      transition: background var(--transition-fast), border-color var(--transition-fast);
+      border-left: 3px solid transparent;
     }
-    .pli:hover { background: var(--gray-50); }
-    .pli.active { background: var(--blue-50); border-left: 3px solid var(--blue-600); }
-    .pli-name { font-size: 0.845rem; font-weight: 600; color: var(--gray-800); }
-    .pli-code { font-size: 0.72rem; font-family: var(--font-mono); color: var(--blue-600); font-weight: 700; }
-    .pli-meta { font-size: 0.7rem; color: var(--gray-400); margin-top: 1px; }
-
-    .patient-info-banner {
+    .result-sidebar-item:hover {
+      background: var(--gray-50);
+    }
+    .result-sidebar-item.active {
+      background: var(--blue-50);
+      border-left-color: var(--blue-600);
+    }
+    .rs-name {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+    .rs-code {
+      margin-top: 2px;
+      font-size: 0.74rem;
+      color: var(--blue-700);
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+    .rs-meta {
+      margin-top: 5px;
+      font-size: 0.72rem;
+      color: var(--gray-500);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .doctor-banner {
       background: var(--white);
       border: 1px solid var(--gray-200);
       border-radius: var(--radius-lg);
-      padding: 16px 20px;
-      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      padding: 18px 20px;
       margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: center;
     }
-    .p-avatar {
-      width: 42px; height: 42px; border-radius: 50%;
-      background: var(--blue-600); color: white;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1rem; font-weight: 700; flex-shrink: 0;
+    .doctor-patient {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
     }
-    .p-info-fields { flex: 1; display: flex; gap: 20px; flex-wrap: wrap; }
-    .p-info-item .p-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-400); font-weight: 600; }
-    .p-info-item .p-val { font-size: 0.845rem; font-weight: 600; color: var(--gray-800); margin-top: 1px; }
-
-    .test-tabs {
-      display: flex; gap: 4px;
-      border-bottom: 2px solid var(--gray-200);
-      margin-bottom: 20px; overflow-x: auto;
+    .doctor-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--blue-600);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      font-weight: 700;
+      flex-shrink: 0;
     }
-    .test-tab {
-      padding: 8px 16px;
-      font-size: 0.8rem; font-weight: 600; color: var(--gray-500);
-      cursor: pointer; border-bottom: 2px solid transparent;
-      margin-bottom: -2px; white-space: nowrap;
-      transition: color var(--transition-fast), border-color var(--transition-fast);
-      background: none; border-top: none; border-left: none; border-right: none;
+    .doctor-meta {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
     }
-    .test-tab:hover { color: var(--gray-800); }
-    .test-tab.active { color: var(--blue-700); border-bottom-color: var(--blue-600); }
-
-    .result-table { width: 100%; border-collapse: collapse; }
-    .result-table thead tr { background: var(--gray-50); border-bottom: 2px solid var(--gray-200); }
-    .result-table th { padding: 10px 14px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); text-align: left; }
-    .result-table td { padding: 10px 14px; border-bottom: 1px solid var(--gray-100); font-size: 0.845rem; vertical-align: middle; }
-    .result-table tr:last-child td { border-bottom: none; }
-    .result-table tr:hover td { background: var(--gray-50); }
-
-    .result-input {
-      width: 100%; padding: 7px 10px;
-      border: 1.5px solid var(--gray-200); border-radius: 6px;
-      font-size: 0.845rem; font-family: var(--font-mono); font-weight: 600; color: var(--gray-800);
+    .doctor-meta-item {
+      min-width: 110px;
+    }
+    .doctor-meta-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--gray-400);
+      font-weight: 700;
+    }
+    .doctor-meta-value {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-top: 2px;
+    }
+    .doctor-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .test-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .test-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .test-card-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--gray-100);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .test-card-title {
+      font-size: 0.98rem;
+      font-weight: 800;
+      color: var(--gray-900);
+    }
+    .test-card-tools {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      color: var(--gray-600);
+      font-size: 0.8rem;
+    }
+    .check-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+    .result-grid {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .result-grid thead tr {
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .result-grid th {
+      padding: 12px 16px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--gray-500);
+      text-align: left;
+      font-weight: 700;
+    }
+    .result-grid td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--gray-100);
+      font-size: 0.86rem;
+      vertical-align: middle;
+    }
+    .result-grid tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .section-row td {
+      background: #fcfcfd;
+      font-size: 0.86rem;
+      font-weight: 800;
+      color: var(--gray-800);
+      padding-top: 16px;
+      padding-bottom: 8px;
+    }
+    .param-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .param-check {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--blue-600);
+      flex-shrink: 0;
+    }
+    .param-name {
+      font-weight: 600;
+      color: var(--gray-800);
+    }
+    .param-sub {
+      padding-left: 28px;
+      color: var(--gray-600);
+    }
+    .value-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .observed-input {
+      width: 200px;
+      max-width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
       outline: none;
-      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+      background: var(--white);
     }
-    .result-input:focus { border-color: var(--blue-500); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-
-    .save-row-btn {
-      background: none; border: none; color: var(--gray-300); cursor: pointer;
-      padding: 4px 8px; border-radius: 4px;
+    .observed-input:focus {
+      border-color: var(--blue-500);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+    .observed-input.high,
+    .observed-input.low {
+      border-color: #ef4444;
+      background: #fff7f7;
+    }
+    .observed-input.calculated {
+      background: var(--gray-100);
+      color: var(--gray-500);
+    }
+    .range-text,
+    .unit-text {
+      color: var(--gray-600);
+      font-size: 0.82rem;
+    }
+    .range-flag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--red-500);
+      white-space: nowrap;
+    }
+    .save-icon-btn {
+      background: none;
+      border: none;
+      color: var(--gray-300);
+      font-size: 0.88rem;
+      padding: 4px;
+      border-radius: 6px;
       transition: color var(--transition-fast), background var(--transition-fast);
-      font-size: 0.78rem;
     }
-    .save-row-btn:hover { color: var(--green-600); background: var(--green-50); }
-    .save-row-btn.saved { color: var(--green-500); }
-
-    .empty-panel { text-align: center; padding: 60px 20px; color: var(--gray-400); }
-    .empty-panel i { font-size: 2.5rem; display: block; margin-bottom: 14px; opacity: 0.3; }
+    .save-icon-btn:hover {
+      color: var(--green-600);
+      background: var(--green-50);
+    }
+    .save-icon-btn.saved {
+      color: var(--green-600);
+    }
+    .empty-panel {
+      text-align: center;
+      padding: 70px 24px;
+      color: var(--gray-400);
+    }
+    .empty-panel i {
+      display: block;
+      font-size: 2.4rem;
+      margin-bottom: 12px;
+      opacity: 0.35;
+    }
+    .footer-note {
+      padding: 14px 18px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--gray-100);
+    }
   </style>
 </head>
 <body>
@@ -125,71 +318,65 @@
     </header>
 
     <main class="page-content">
-
-      <!-- Date filter -->
       <div class="filter-bar mb-20">
         <div class="form-group">
           <label class="form-label">From Date</label>
           <div style="position:relative;">
-            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY"
-              value="<%= typeof fromDate !== 'undefined' ? fromDate : '' %>" />
+            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY" value="<%= typeof fromDate !== 'undefined' ? fromDate : '' %>" />
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">To Date</label>
           <div style="position:relative;">
-            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY"
-              value="<%= typeof toDate !== 'undefined' ? toDate : '' %>" />
+            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY" value="<%= typeof toDate !== 'undefined' ? toDate : '' %>" />
           </div>
         </div>
-        <button class="btn btn-primary" onclick="applyFilter()"><i class="fas fa-search"></i> Load Patients</button>
+        <button class="btn btn-primary" onclick="applyFilter()"><i class="fas fa-search"></i> Load Accepted Cases</button>
         <button class="btn btn-secondary" onclick="clearFilter()"><i class="fas fa-times"></i> Clear</button>
       </div>
 
       <div class="result-layout">
-
-        <!-- Patient list -->
-        <div class="patient-list-panel">
-          <div class="panel-header">
-            <h4><i class="fas fa-users" style="color:var(--blue-500);margin-right:6px;"></i>Patients</h4>
+        <div class="result-sidebar">
+          <div class="result-sidebar-head">
+            <div style="font-size:0.9rem;font-weight:800;color:var(--gray-800);">
+              <i class="fas fa-user-check" style="color:var(--blue-500);margin-right:6px;"></i>Accepted Accession
+            </div>
             <span class="badge badge-blue"><%= patientList ? patientList.length : 0 %></span>
           </div>
-          <div style="padding:10px 12px;border-bottom:1px solid var(--gray-100);">
-            <input type="text" class="form-control" style="font-size:0.8rem;" placeholder="Search patient..." oninput="filterList(this.value)" />
+          <div style="padding:12px 14px;border-bottom:1px solid var(--gray-100);">
+            <input type="text" class="form-control" style="font-size:0.8rem;" placeholder="Search accepted patient..." oninput="filterList(this.value)" />
           </div>
-          <div class="patient-list" id="patientList">
+          <div class="result-sidebar-list" id="patientList">
             <% if (patientList && patientList.length > 0) { %>
               <% patientList.forEach(function(p, i) { %>
-              <div class="pli <%= i === 0 ? 'active' : '' %>"
+              <div class="result-sidebar-item <%= i === 0 ? 'active' : '' %>"
                    data-vc="<%= p.VisitCode %>"
                    data-name="<%= (p.PatientName || '').toLowerCase() %>"
                    onclick="loadResult('<%= p.VisitCode %>', this)">
-                <div class="pli-name"><%= p.PatientName || '—' %></div>
-                <div class="pli-code"><%= p.VisitCode %></div>
-                <div class="pli-meta">
-                  <%= p.Age ? p.Age + (p.AgeType || '') : '' %>
-                  <% if (p.Gender) { %> · <%= p.Gender %><% } %>
+                <div class="rs-name"><%= p.PatientName || '—' %></div>
+                <div class="rs-code"><%= p.VisitCode || '—' %></div>
+                <div class="rs-meta">
+                  <% if (p.TestName || p.ProfileName) { %><span><i class="fas fa-flask"></i> <%= p.TestName || p.ProfileName %></span><% } %>
+                  <% if (p.VisitDateTime) { %><span><i class="fas fa-calendar"></i> <%= p.VisitDateTime %></span><% } %>
                 </div>
               </div>
               <% }); %>
             <% } else { %>
-            <div style="padding:24px;text-align:center;color:var(--gray-400);font-size:0.845rem;">
-              No patients found.<br>Apply a date filter.
+            <div style="padding:28px;text-align:center;color:var(--gray-400);font-size:0.85rem;">
+              No accession-approved patients found.
             </div>
             <% } %>
           </div>
         </div>
 
-        <!-- Result panel -->
         <div id="resultPanel">
           <div class="card">
             <div class="empty-panel">
-              <i class="fas fa-flask-vial"></i>
-              <p>Select a patient from the list to enter results.</p>
+              <i class="fas fa-notes-medical"></i>
+              <p>Select an accepted accession case to enter results manually.</p>
             </div>
           </div>
         </div>
-
       </div>
     </main>
   </div>
@@ -197,14 +384,12 @@
 
 <script src="/js/main.js"></script>
 <script>
-  // ── Date pickers ──
   initDatePicker('fromDate');
   initDatePicker('toDate');
 
-  // ── Filter ──
   function applyFilter() {
     var from = document.getElementById('fromDate').value;
-    var to   = document.getElementById('toDate').value;
+    var to = document.getElementById('toDate').value;
     if (!from || !to) { showToast('Please select both From and To dates', 'warning'); return; }
     window.location.href = '/result?FromDate=' + encodeURIComponent(from) + '&ToDate=' + encodeURIComponent(to);
   }
@@ -215,152 +400,340 @@
     window.location.href = '/result';
   }
 
-  // ── Patient list filter ──
   function filterList(q) {
     q = q.toLowerCase();
-    document.querySelectorAll('.pli').forEach(function(el) {
-      el.style.display = (el.dataset.name.includes(q) || el.dataset.vc.toLowerCase().includes(q)) ? '' : 'none';
+    document.querySelectorAll('.result-sidebar-item').forEach(function(el) {
+      var visitCode = (el.dataset.vc || '').toLowerCase();
+      el.style.display = (el.dataset.name.includes(q) || visitCode.includes(q)) ? '' : 'none';
     });
   }
 
-  // ── Load result for patient ──
   function loadResult(visitCode, el) {
-    document.querySelectorAll('.pli').forEach(function(i) { i.classList.remove('active'); });
+    document.querySelectorAll('.result-sidebar-item').forEach(function(item) { item.classList.remove('active'); });
     el.classList.add('active');
 
     var panel = document.getElementById('resultPanel');
-    panel.innerHTML = '<div class="card"><div style="padding:40px;text-align:center;"><div class="spinner" style="width:28px;height:28px;border-width:3px;margin:0 auto;"></div><p style="margin-top:12px;color:var(--gray-400);font-size:0.845rem;">Loading...</p></div></div>';
+    panel.innerHTML = '<div class="card"><div style="padding:50px;text-align:center;"><div class="spinner" style="width:28px;height:28px;border-width:3px;margin:0 auto;"></div><p style="margin-top:12px;color:var(--gray-400);font-size:0.85rem;">Loading patient result sheet...</p></div></div>';
 
     fetch('/result/details/' + visitCode)
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (!data.success) {
-          panel.innerHTML = '<div class="card"><div style="padding:40px;text-align:center;color:var(--red-500);">Failed to load patient data.</div></div>';
+          panel.innerHTML = '<div class="card"><div class="empty-panel"><i class="fas fa-circle-exclamation"></i><p>Failed to load result details.</p></div></div>';
           return;
         }
-        renderResult(visitCode, data.resultDetails, data.resultTests);
+        renderResult(visitCode, data.resultDetails, data.resultTests || []);
       })
       .catch(function() {
-        panel.innerHTML = '<div class="card"><div style="padding:40px;text-align:center;color:var(--red-500);">Network error.</div></div>';
+        panel.innerHTML = '<div class="card"><div class="empty-panel"><i class="fas fa-wifi"></i><p>Network error while loading result details.</p></div></div>';
       });
   }
 
-  // ── Render result panel ──
-  function renderResult(visitCode, details, tests) {
-    var d = details || {};
-    var testMap = {};
-    (tests || []).forEach(function(t) {
-      if (!testMap[t.TestID]) testMap[t.TestID] = { name: t.TestName, params: [] };
-      testMap[t.TestID].params.push(t);
-    });
-    var testIds = Object.keys(testMap);
+  function getSectionName(row) {
+    return row.ParameterGroupName || row.GroupName || row.HeaderName || row.SubTestName || row.CategoryName || '';
+  }
 
-    var tabsHtml = testIds.map(function(tid, i) {
-      return '<button class="test-tab ' + (i === 0 ? 'active' : '') + '" onclick="switchTab(\'tab-' + tid + '\', this)">' + testMap[tid].name + '</button>';
-    }).join('');
+  function parseRange(rangeText) {
+    if (!rangeText) return null;
+    var text = String(rangeText).trim();
+    var between = text.match(/(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)/);
+    if (between) {
+      return { min: parseFloat(between[1]), max: parseFloat(between[2]) };
+    }
+    var lt = text.match(/^<?=?\s*(-?\d+(?:\.\d+)?)/i);
+    if (lt && (text.indexOf('<') !== -1 || text.indexOf('<=') !== -1)) {
+      return { max: parseFloat(lt[1]) };
+    }
+    var gt = text.match(/^>?\=?\s*(-?\d+(?:\.\d+)?)/i);
+    if (gt && (text.indexOf('>') !== -1 || text.indexOf('>=') !== -1)) {
+      return { min: parseFloat(gt[1]) };
+    }
+    return null;
+  }
 
-    var contentHtml = testIds.map(function(tid, i) {
-      var rows = testMap[tid].params.map(function(p) {
-        return '<tr>' +
-          '<td>' + (p.ParameterName || '—') + '</td>' +
-          '<td><input type="text" class="result-input" value="' + (p.Result || '') + '"' +
-            ' data-param="' + p.ParameterID + '" data-test="' + tid + '" data-visit="' + visitCode + '"' +
-            ' onchange="markDirty(this)" onblur="autoSave(this)" /></td>' +
-          '<td style="color:var(--gray-500);font-size:0.8rem;">' + (p.UnitName || '') + '</td>' +
-          '<td style="font-family:var(--font-mono);color:var(--gray-400);font-size:0.78rem;">' + (p.DisplayRange || '—') + '</td>' +
-          '<td><button class="save-row-btn" onclick="saveRow(this)" title="Save"><i class="fas fa-check"></i></button></td>' +
-        '</tr>';
-      }).join('');
+  function getValueFlag(value, rangeText) {
+    var num = parseFloat(value);
+    if (value === '' || isNaN(num)) return '';
+    var range = parseRange(rangeText);
+    if (!range) return '';
+    if (typeof range.min === 'number' && num < range.min) return 'L';
+    if (typeof range.max === 'number' && num > range.max) return 'H';
+    return '';
+  }
 
-      return '<div class="test-tab-content ' + (i === 0 ? '' : 'hidden') + '" id="tab-' + tid + '">' +
-        '<div class="table-wrapper"><table class="result-table">' +
-        '<thead><tr><th>Parameter</th><th style="width:180px;">Result</th><th>Unit</th><th>Ref Range</th><th style="width:44px;"></th></tr></thead>' +
-        '<tbody>' + rows + '</tbody>' +
-        '</table></div></div>';
-    }).join('');
-
-    var initials = (d.PatientName || 'P')[0].toUpperCase();
-
-    document.getElementById('resultPanel').innerHTML =
-      '<div class="patient-info-banner">' +
-        '<div class="p-avatar">' + initials + '</div>' +
-        '<div class="p-info-fields">' +
-          '<div class="p-info-item"><div class="p-label">Patient</div><div class="p-val">' + (d.PatientName || '—') + '</div></div>' +
-          '<div class="p-info-item"><div class="p-label">Visit Code</div><div class="p-val" style="font-family:var(--font-mono);color:var(--blue-700);">' + visitCode + '</div></div>' +
-          '<div class="p-info-item"><div class="p-label">Age / Gender</div><div class="p-val">' + (d.Age || '—') + ' ' + (d.AgeType || '') + (d.Gender ? ' · ' + d.Gender : '') + '</div></div>' +
-          '<div class="p-info-item"><div class="p-label">Doctor</div><div class="p-val">' + (d.DoctorName || '—') + '</div></div>' +
+  function formatPatientSummary(details, visitCode) {
+    var initials = ((details.PatientName || 'P').trim()[0] || 'P').toUpperCase();
+    return '' +
+      '<div class="doctor-banner">' +
+        '<div class="doctor-patient">' +
+          '<div class="doctor-avatar">' + initials + '</div>' +
+          '<div class="doctor-meta">' +
+            '<div class="doctor-meta-item"><div class="doctor-meta-label">Patient</div><div class="doctor-meta-value">' + (details.PatientName || '—') + '</div></div>' +
+            '<div class="doctor-meta-item"><div class="doctor-meta-label">Visit Code</div><div class="doctor-meta-value" style="font-family:var(--font-mono);color:var(--blue-700);">' + visitCode + '</div></div>' +
+            '<div class="doctor-meta-item"><div class="doctor-meta-label">Age / Gender</div><div class="doctor-meta-value">' + (details.Age || '—') + ' ' + (details.AgeType || '') + (details.Gender ? ' / ' + details.Gender : '') + '</div></div>' +
+            '<div class="doctor-meta-item"><div class="doctor-meta-label">Doctor</div><div class="doctor-meta-value">' + (details.DoctorName || '—') + '</div></div>' +
+          '</div>' +
         '</div>' +
-        '<button class="btn btn-success btn-sm" onclick="saveAllResults(\'' + visitCode + '\')"><i class="fas fa-save"></i> Save All</button>' +
-      '</div>' +
-      '<div class="card">' +
-        '<div style="padding:16px 20px 0;">' +
-          '<div class="test-tabs">' + (tabsHtml || '<span class="text-sm text-muted" style="padding:10px;">No tests found</span>') + '</div>' +
-        '</div>' +
-        '<div class="card-body">' +
-          (contentHtml || '<div class="empty-panel"><i class="fas fa-clipboard"></i><p>No parameters to enter.</p></div>') +
-        '</div>' +
-        '<div class="card-footer">' +
-          '<span class="text-xs text-muted"><i class="fas fa-info-circle"></i> Results auto-save on field blur.</span>' +
-          '<div style="flex:1;"></div>' +
-          '<button class="btn btn-primary" onclick="saveAllResults(\'' + visitCode + '\')"><i class="fas fa-save"></i> Save All Results</button>' +
+        '<div class="doctor-actions">' +
+          '<span class="badge badge-green"><i class="fas fa-check-circle"></i>&nbsp;Ready For Manual Entry</span>' +
+          '<button class="btn btn-secondary" onclick="saveAllResults(\'' + visitCode + '\')"><i class="fas fa-save"></i> Save Result</button>' +
+          '<button class="btn btn-primary" onclick="authorizeVisitForReports(\'' + visitCode + '\')"><i class="fas fa-user-md"></i> Authorized By Doctor</button>' +
         '</div>' +
       '</div>';
   }
 
-  function switchTab(tabId, btn) {
-    document.querySelectorAll('.test-tab-content').forEach(function(c) { c.classList.add('hidden'); });
-    document.querySelectorAll('.test-tab').forEach(function(t) { t.classList.remove('active'); });
-    var el = document.getElementById(tabId);
-    if (el) el.classList.remove('hidden');
-    btn.classList.add('active');
+  function renderResult(visitCode, details, tests) {
+    var groupedTests = {};
+    (tests || []).forEach(function(row) {
+      var testID = row.TestID || 'default';
+      if (!groupedTests[testID]) {
+        groupedTests[testID] = {
+          testName: row.TestName || 'Test',
+          rows: []
+        };
+      }
+      groupedTests[testID].rows.push(row);
+    });
+
+    var testHtml = Object.keys(groupedTests).map(function(testID) {
+      var test = groupedTests[testID];
+      var lastSection = null;
+      var rowsHtml = test.rows.map(function(row) {
+        var sectionName = getSectionName(row);
+        var sectionRow = '';
+        if (sectionName && sectionName !== lastSection) {
+          sectionRow = '<tr class="section-row"><td colspan="5">' + sectionName + '</td></tr>';
+          lastSection = sectionName;
+        }
+
+        var value = row.Result || '';
+        var flag = getValueFlag(value, row.DisplayRange || '');
+        var inputClass = 'observed-input' + (flag ? ' ' + (flag === 'H' ? 'high' : 'low') : '');
+        var isCalculated = !!(row.Formula || row.IsCalculated || String(row.Result || '').toLowerCase() === 'calculated');
+        if (isCalculated) inputClass += ' calculated';
+
+        return sectionRow +
+          '<tr>' +
+            '<td>' +
+              '<div class="param-cell">' +
+                '<input type="checkbox" class="param-check" ' + (value ? 'checked' : '') + ' onchange="toggleManualCheck(this)" />' +
+                '<div>' +
+                  '<div class="param-name">' + (row.ParameterName || '—') + '</div>' +
+                  (sectionName ? '<div class="param-sub"></div>' : '') +
+                '</div>' +
+              '</div>' +
+            '</td>' +
+            '<td>' +
+              '<div class="value-wrap">' +
+                '<input type="text" class="' + inputClass + '" value="' + value + '"' +
+                  ' data-param="' + (row.ParameterID || '') + '"' +
+                  ' data-test="' + testID + '"' +
+                  ' data-visit="' + visitCode + '"' +
+                  ' data-visittrans="' + (row.VisitTransID || '') + '"' +
+                  ' data-range="' + (row.DisplayRange || '').replace(/"/g, '&quot;') + '"' +
+                  ' ' + (isCalculated ? 'readonly' : '') +
+                  ' oninput="handleObservedChange(this)" onblur="autoSave(this)" />' +
+                (flag ? '<span class="range-flag">' + flag + '</span>' : '') +
+                '<button class="save-icon-btn" onclick="saveRow(this)" title="Save"><i class="fas fa-pen"></i></button>' +
+              '</div>' +
+            '</td>' +
+            '<td class="unit-text">' + (row.UnitName || '-') + '</td>' +
+            '<td class="range-text">' + (row.DisplayRange || '-') + '</td>' +
+            '<td class="range-text">' + (flag ? (flag === 'H' ? 'High' : 'Low') : 'Normal') + '</td>' +
+          '</tr>';
+      }).join('');
+
+      return '' +
+        '<div class="test-card">' +
+          '<div class="test-card-head">' +
+            '<div class="test-card-title">' + test.testName + '</div>' +
+            '<div class="test-card-tools">' +
+              '<label class="check-inline"><input type="checkbox" checked /> Show Interpretation</label>' +
+              '<button class="btn btn-secondary btn-sm" type="button"><i class="fas fa-plus"></i> Comments</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="table-wrapper">' +
+            '<table class="result-grid">' +
+              '<thead><tr><th>Tests</th><th>Observed Value</th><th>Units</th><th>Normal Range</th><th>Flag</th></tr></thead>' +
+              '<tbody>' + rowsHtml + '</tbody>' +
+            '</table>' +
+          '</div>' +
+          '<div class="footer-note">' +
+            '<span class="text-xs text-muted"><i class="fas fa-circle-info"></i> Doctor can fill values manually for accession-approved cases.</span>' +
+            '<button class="btn btn-primary btn-sm" onclick="saveTestResults(\'' + visitCode + '\', \'' + testID + '\')"><i class="fas fa-save"></i> Save This Test</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+
+    document.getElementById('resultPanel').innerHTML =
+      formatPatientSummary(details || {}, visitCode) +
+      '<div class="test-shell">' +
+        (testHtml || '<div class="card"><div class="empty-panel"><i class="fas fa-flask"></i><p>No parameters available for manual entry.</p></div></div>') +
+      '</div>';
   }
 
-  function markDirty(input) {
-    var btn = input.closest('tr') ? input.closest('tr').querySelector('.save-row-btn') : null;
-    if (btn) btn.classList.remove('saved');
+  function toggleManualCheck(checkbox) {
+    var row = checkbox.closest('tr');
+    var input = row ? row.querySelector('.observed-input') : null;
+    if (input && !input.readOnly && checkbox.checked) input.focus();
+  }
+
+  function handleObservedChange(input) {
+    var value = input.value.trim();
+    var flag = getValueFlag(value, input.dataset.range || '');
+    input.classList.remove('high', 'low');
+    if (flag === 'H') input.classList.add('high');
+    if (flag === 'L') input.classList.add('low');
+    var row = input.closest('tr');
+    if (row) {
+      var flagCell = row.querySelector('td:last-child');
+      if (flagCell) flagCell.textContent = flag ? (flag === 'H' ? 'High' : 'Low') : 'Normal';
+      var flagBadge = input.parentNode.querySelector('.range-flag');
+      if (flag) {
+        if (flagBadge) flagBadge.textContent = flag;
+        else {
+          var span = document.createElement('span');
+          span.className = 'range-flag';
+          span.textContent = flag;
+          input.parentNode.insertBefore(span, input.nextSibling);
+        }
+      } else if (flagBadge) {
+        flagBadge.remove();
+      }
+      var checkbox = row.querySelector('.param-check');
+      if (checkbox) checkbox.checked = !!value;
+      var saveBtn = row.querySelector('.save-icon-btn');
+      if (saveBtn) saveBtn.classList.remove('saved');
+    }
   }
 
   function autoSave(input) {
-    doSave(input.dataset.visit, input.dataset.test, input.dataset.param, input.value)
-      .then(function() {
-        var btn = input.closest('tr') ? input.closest('tr').querySelector('.save-row-btn') : null;
+    if (!input || input.readOnly) return Promise.resolve();
+    return doSave(input.dataset.visit, input.dataset.test, input.dataset.param, input.value)
+      .then(function(ok) {
+        if (!ok) return;
+        var btn = input.parentNode.querySelector('.save-icon-btn');
         if (btn) btn.classList.add('saved');
       });
   }
 
   function saveRow(btn) {
-    var row   = btn.closest('tr');
-    var input = row.querySelector('.result-input');
+    var row = btn.closest('tr');
+    var input = row ? row.querySelector('.observed-input') : null;
+    if (!input) return;
     doSave(input.dataset.visit, input.dataset.test, input.dataset.param, input.value)
-      .then(function() {
+      .then(function(ok) {
+        if (!ok) return;
         btn.classList.add('saved');
         showToast('Result saved', 'success');
       });
   }
 
-  function saveAllResults(visitCode) {
-    var inputs   = document.querySelectorAll('.result-input');
-    var promises = [];
-    inputs.forEach(function(inp) {
-      promises.push(doSave(inp.dataset.visit, inp.dataset.test, inp.dataset.param, inp.value));
+  function saveTestResults(visitCode, testID) {
+    var inputs = document.querySelectorAll('.observed-input[data-visit="' + visitCode + '"][data-test="' + testID + '"]');
+    var saves = [];
+    inputs.forEach(function(input) {
+      if (!input.readOnly) saves.push(doSave(input.dataset.visit, input.dataset.test, input.dataset.param, input.value));
     });
-    Promise.all(promises).then(function() {
-      document.querySelectorAll('.save-row-btn').forEach(function(b) { b.classList.add('saved'); });
-      showToast(inputs.length + ' results saved successfully', 'success');
+    Promise.all(saves).then(function() {
+      showToast('Test results saved', 'success');
+      document.querySelectorAll('.observed-input[data-visit="' + visitCode + '"][data-test="' + testID + '"]').forEach(function(input) {
+        var btn = input.parentNode.querySelector('.save-icon-btn');
+        if (btn) btn.classList.add('saved');
+      });
+    });
+  }
+
+  function saveAllResults(visitCode) {
+    var inputs = document.querySelectorAll('.observed-input[data-visit="' + visitCode + '"]');
+    var saves = [];
+    inputs.forEach(function(input) {
+      if (!input.readOnly) saves.push(doSave(input.dataset.visit, input.dataset.test, input.dataset.param, input.value));
+    });
+    Promise.all(saves).then(function(results) {
+      if (results.some(function(ok) { return !ok; })) return;
+      document.querySelectorAll('.save-icon-btn').forEach(function(btn) { btn.classList.add('saved'); });
+      showToast('Results saved successfully', 'success');
+    });
+  }
+
+  function authorizeVisitForReports(visitCode) {
+    saveAllResultsBeforeAuthorize(visitCode).then(function(saved) {
+      if (!saved) return;
+      markVisitReadyForReports(visitCode).then(function(marked) {
+        if (marked) {
+          showToast('Authorized by doctor and sent to Reports', 'success');
+        } else {
+          showToast('Authorization failed', 'error');
+        }
+      });
+    });
+  }
+
+  function saveAllResultsBeforeAuthorize(visitCode) {
+    var inputs = document.querySelectorAll('.observed-input[data-visit="' + visitCode + '"]');
+    var saves = [];
+    inputs.forEach(function(input) {
+      if (!input.readOnly) saves.push(doSave(input.dataset.visit, input.dataset.test, input.dataset.param, input.value));
+    });
+    return Promise.all(saves).then(function(results) {
+      if (results.some(function(ok) { return !ok; })) return false;
+      document.querySelectorAll('.save-icon-btn').forEach(function(btn) { btn.classList.add('saved'); });
+      return true;
+    });
+  }
+
+  function markVisitReadyForReports(visitCode) {
+    var inputs = Array.from(document.querySelectorAll('.observed-input[data-visit="' + visitCode + '"]'));
+    var testMap = new Map();
+    inputs.forEach(function(input) {
+      var key = (input.dataset.visittrans || '') + '|' + (input.dataset.test || '');
+      if (!input.dataset.visittrans || !input.dataset.test || testMap.has(key)) return;
+      testMap.set(key, {
+        VisitTransID: parseInt(input.dataset.visittrans, 10),
+        TestID: parseInt(input.dataset.test, 10),
+        ActionID: 13
+      });
+    });
+
+    var updates = Array.from(testMap.values()).map(function(payload) {
+      return fetch('/api/update-testwise-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { return !!data.success; })
+        .catch(function() { return false; });
+    });
+
+    return Promise.all(updates).then(function(results) {
+      return results.length > 0 && results.every(Boolean);
     });
   }
 
   function doSave(visitCode, testID, paramID, result) {
-    if (!visitCode || !testID || !paramID) return Promise.resolve();
+    if (!visitCode || !testID || !paramID) return Promise.resolve(false);
     return fetch('/api/save-result-patient', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ VisitCode: visitCode, TestID: testID, ParameterID: paramID, Result: result })
-    }).catch(function() {});
+    })
+      .then(function(r) { return r.json().catch(function() { return { success: r.ok }; }); })
+      .then(function(data) {
+        if (!data.success) {
+          showToast(data.error || 'Failed to save result', 'error');
+          return false;
+        }
+        return true;
+      })
+      .catch(function() {
+        showToast('Network error while saving result', 'error');
+        return false;
+      });
   }
 
-  // Auto-load first patient
-  var firstItem = document.querySelector('.pli');
+  var firstItem = document.querySelector('.result-sidebar-item');
   if (firstItem) loadResult(firstItem.dataset.vc, firstItem);
 </script>
 </body>

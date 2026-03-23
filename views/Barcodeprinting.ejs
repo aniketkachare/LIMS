@@ -54,13 +54,13 @@
         <div class="form-group">
           <label class="form-label">From Date</label>
           <div style="position:relative;">
-            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY" />
+            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY" value="<%= fromDate || '' %>" />
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">To Date</label>
           <div style="position:relative;">
-            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY" />
+            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY" value="<%= toDate || '' %>" />
           </div>
         </div>
         <button class="btn btn-primary" onclick="applyFilter()"><i class="fas fa-search"></i> Load</button>
@@ -117,7 +117,7 @@
         <div class="card-body" style="text-align:center;padding:60px;color:var(--gray-400);">
           <i class="fas fa-barcode" style="font-size:3rem;display:block;margin-bottom:16px;opacity:0.3;"></i>
           <div style="font-size:0.95rem;font-weight:600;color:var(--gray-500);margin-bottom:8px;">No barcodes loaded</div>
-          <div class="text-sm text-muted">Use the date filter above to load barcode records for printing.</div>
+          <div class="text-sm text-muted">No barcode records found for the selected date range.</div>
         </div>
       </div>
       <% } %>

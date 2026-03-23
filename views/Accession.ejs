@@ -29,13 +29,15 @@
         <div class="form-group">
           <label class="form-label">From Date</label>
           <div style="position:relative;">
-            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY" />
+            <input type="text" id="fromDate" class="form-control" placeholder="DD-MM-YYYY"
+              value="<%= typeof fromDate !== 'undefined' ? fromDate : '' %>" />
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">To Date</label>
           <div style="position:relative;">
-            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY" />
+            <input type="text" id="toDate" class="form-control" placeholder="DD-MM-YYYY"
+              value="<%= typeof toDate !== 'undefined' ? toDate : '' %>" />
           </div>
         </div>
         <button class="btn btn-primary" onclick="applyFilter()"><i class="fas fa-search"></i> Filter</button>
@@ -214,7 +216,10 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ VisitTransID: visitTransID, TestID: testID, ActionID: actionID })
     }).then(function(r) {
-      if (r.ok) showToast('Updated successfully', 'success');
+      if (r.ok) {
+        showToast('Updated successfully', 'success');
+        setTimeout(function() { window.location.reload(); }, 400);
+      }
       else showToast('Update failed', 'error');
     });
   }
@@ -245,7 +250,11 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ actionID: actionID, rows: rows })
     }).then(function(r) {
-      if (r.ok) { showToast('Bulk update done', 'success'); closeModal('bulkModal'); }
+      if (r.ok) {
+        showToast('Bulk update done', 'success');
+        closeModal('bulkModal');
+        setTimeout(function() { window.location.reload(); }, 400);
+      }
     });
   }
 

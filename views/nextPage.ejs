@@ -113,6 +113,7 @@
       <% } %>
 
       <form action="/submit" method="POST" enctype="multipart/form-data" id="finalForm">
+        <input type="hidden" name="paymentModeName" id="paymentModeName" />
 
         <!-- Payment -->
         <div class="card mb-20">
@@ -213,6 +214,14 @@
 
 <script src="/js/main.js"></script>
 <script>
+  var paymentModeSelect = document.querySelector('select[name="paymentMode"]');
+  if (paymentModeSelect) {
+    paymentModeSelect.addEventListener('change', function() {
+      var label = this.options[this.selectedIndex] ? this.options[this.selectedIndex].text : '';
+      document.getElementById('paymentModeName').value = label === 'Select payment mode' ? '' : label;
+    });
+  }
+
   function calcAmounts() {
     var gross    = parseFloat(document.getElementById('grossAmount').value)    || 0;
     var visiting = parseFloat(document.getElementById('visitingCharges').value) || 0;
@@ -243,6 +252,10 @@
 
   // Show loading on submit
   document.getElementById('finalForm').addEventListener('submit', function() {
+    if (paymentModeSelect) {
+      var label = paymentModeSelect.options[paymentModeSelect.selectedIndex] ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : '';
+      document.getElementById('paymentModeName').value = label === 'Select payment mode' ? '' : label;
+    }
     var btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Saving...';
