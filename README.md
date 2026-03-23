@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # LIMS — Laboratory Information System Management
 
 Production-ready Node.js + Express + MSSQL + EJS application for HLL Lifecare Laboratory.
@@ -166,3 +167,7 @@ Validation in `/submit`:
 ## 📌 Notes
 
 This `README` is aligned with the current `app.js` code in this repository.
+=======
+# LIMS
+Karan LIMS
+>>>>>>> effbf8b12d9b4cde1b56c0b090e26831f0bdcbcd
