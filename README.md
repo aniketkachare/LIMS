@@ -1,6 +1,6 @@
 # LIMS - Laboratory Information System Management
 
-Node.js + Express + MSSQL + EJS application for laboratory registration, collection, accession, result entry, billing, barcode printing, validation, search, and reports.
+Node.js + Express + MSSQL + EJS application for laboratory registration, collection, accession, result entry, billing, invoice printing, barcode printing, financial analysis, validation, search, and reports.
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ Node.js + Express + MSSQL + EJS application for laboratory registration, collect
 1. Registration
    Save patient, visit, billing, files, and selected tests/profiles.
 2. Collection
-   Collected samples move forward from the collection queue.
+   One-click collection actions move samples forward from the collection queue.
 3. Accession
    Accepted accession cases move into Result Entry.
 4. Result Entry
@@ -41,18 +41,25 @@ Node.js + Express + MSSQL + EJS application for laboratory registration, collect
 5. Reports
    Authorized cases appear in the report list for preview/print.
 6. Search
-   Search patients, reopen invoice, print invoice, and view pending amount.
+   Search patients, reopen invoice, print invoice in popup, and view pending amount.
+7. Financial Analysis
+   Review revenue, due balance, payment mode split, and daily financial summaries.
 
 ## Main Features
 
-- Two-step registration flow with patient + billing details
-- Invoice generation and invoice reprint from Search
+- Two-step registration flow with custom registration date picker and patient + billing details
+- Add new Center / Lab, Referred By, and Doctor from Registration with inline `+` buttons
+- Billing page redesigned into a bill-entry layout
+- Invoice generation and invoice reprint from Search in popup window style
 - Search page defaults to today's patients
-- Collection and Accession queues with status updates
+- Collection queue with one-click `Collected`, `Rejected`, and `Hold` buttons
+- Accession queue with one-click `Accepted`, `Reject`, and `Hold` buttons
 - Barcode printing page with today's records by default
 - Manual Result Entry screen for accession-approved patients
 - Separate `Save Result` and `Authorized By Doctor` actions
 - Reports page for authorized results
+- Financial Analysis page with revenue cards, daily snapshot, payment mode split, and due visit tracking
+- Dashboard patient trend chart with `From Date` and `To Date` filters
 - Validation page
 - Dashboard summary
 - Collapsible hover-expand sidebar
@@ -70,7 +77,10 @@ Node.js + Express + MSSQL + EJS application for laboratory registration, collect
 - `POST /register`
 - `GET /nextPage`
 - `POST /submit`
-- `GET /invoice/:visitCode`
+- `GET /invoice/:visitID`
+- `POST /api/master/center`
+- `POST /api/master/refer`
+- `POST /api/master/doctor`
 
 ### Lookup and Support APIs
 - `GET /generateVisitCode`
@@ -111,6 +121,7 @@ Node.js + Express + MSSQL + EJS application for laboratory registration, collect
 
 ### Dashboard
 - `GET /dashboard`
+- `GET /financial-analysis`
 
 ## Project Structure
 
@@ -127,6 +138,7 @@ views/
   register.ejs
   nextPage.ejs
   dashboard.ejs
+  financial-analysis.ejs
   collection.ejs
   Accession.ejs
   Barcodeprinting.ejs
@@ -151,14 +163,22 @@ uploads/
   - `Gross`
   - `Net`
   - `AmountPaid`
+  - `DiscountAmount`
+  - `VisitingCharges`
   - `BalanceAmt`
+
+- Current line-item billing column used from `Visit_Trans`:
+  - `TestPrice`
+  - `DiscountAmount`
 
 ## Current UI Notes
 
 - Sidebar is collapsed by default on desktop and expands on hover
 - Search and Barcode pages default to today's date
-- Invoice layout is plain black-and-white and print-friendly
+- Invoice opens in popup window style and uses a compact single printable layout
 - Result Entry is designed for manual parameter entry
+- Dashboard includes a patient registration trend chart with date range filters
+- Financial Analysis has a dedicated menu and dashboard quick action
 
 ## Production Notes
 
