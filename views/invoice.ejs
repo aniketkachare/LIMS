@@ -8,119 +8,135 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      padding: 16px;
+      padding: 18px;
       background: #ffffff;
-      color: #000000;
+      color: #111111;
       font-family: Arial, sans-serif;
       font-size: 12px;
       line-height: 1.35;
     }
     .toolbar {
+      max-width: 860px;
+      margin: 0 auto 12px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      justify-content: space-between;
+      gap: 12px;
     }
     .toolbar-actions {
       display: flex;
       gap: 8px;
+      flex-wrap: wrap;
     }
     .btn {
       display: inline-block;
       padding: 8px 12px;
-      border: 1px solid #000000;
+      border: 1px solid #111111;
       background: #ffffff;
-      color: #000000;
+      color: #111111;
       text-decoration: none;
       font-size: 12px;
       cursor: pointer;
     }
-    .invoice-sheet {
-      width: 100%;
-      max-width: 820px;
+    .sheet {
+      max-width: 860px;
       margin: 0 auto;
-      border: 1px solid #000000;
-      padding: 18px 20px;
+      border: 1px solid #111111;
       background: #ffffff;
+      padding: 16px 18px 18px;
     }
-    .header {
+    .topline {
       display: flex;
-      justify-content: space-between;
       align-items: flex-start;
-      gap: 20px;
-      border-bottom: 1px solid #000000;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
+      justify-content: space-between;
+      gap: 24px;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #111111;
     }
     .title {
-      font-size: 20px;
+      font-size: 24px;
       font-weight: 700;
-      letter-spacing: 0.5px;
       margin-bottom: 4px;
     }
+    .lab-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
     .muted {
+      color: #444444;
       font-size: 11px;
     }
     .meta {
+      min-width: 280px;
       text-align: right;
-      min-width: 220px;
     }
     .meta-row {
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
-    .section {
-      margin-bottom: 12px;
-    }
-    .section-title {
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      border-bottom: 1px solid #000000;
-      padding-bottom: 4px;
-      margin-bottom: 6px;
-    }
-    .patient-grid {
+    .summary-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 4px 20px;
+      gap: 4px 24px;
+      margin-bottom: 12px;
     }
-    .patient-row {
+    .summary-row {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
-    .patient-row .label {
-      min-width: 90px;
-      font-weight: 700;
+    .summary-row strong {
+      min-width: 96px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
     }
     th, td {
-      border: 1px solid #000000;
-      padding: 6px 8px;
-      vertical-align: top;
+      padding: 7px 8px;
+      border: 1px solid #cfcfcf;
       text-align: left;
+      vertical-align: top;
     }
-    th {
+    thead th {
+      background: #5f5f5f;
+      color: #ffffff;
+      border-color: #5f5f5f;
       font-weight: 700;
-      background: #ffffff;
     }
-    .summary {
+    .amount-cell {
+      text-align: right;
+      white-space: nowrap;
+    }
+    .totals {
       width: 320px;
       margin-left: auto;
-      margin-top: 10px;
+      margin-top: 12px;
+      border-collapse: collapse;
     }
-    .summary td:first-child {
+    .totals td {
+      border: none;
+      padding: 5px 6px;
+    }
+    .totals td:first-child {
       font-weight: 700;
-      width: 60%;
     }
-    .summary td:last-child {
+    .totals td:last-child {
       text-align: right;
-      width: 40%;
+      font-weight: 700;
     }
-    .status-line {
-      margin-top: 10px;
+    .paid-amount {
+      color: #178a2f;
+    }
+    .discount-amount {
+      color: #b45309;
+    }
+    .balance-box td {
+      background: #ececec;
+    }
+    .words {
+      margin-top: 8px;
+      text-align: right;
       font-weight: 700;
     }
     @page {
@@ -128,113 +144,133 @@
       margin: 10mm;
     }
     @media print {
-      body {
-        padding: 0;
-      }
-      .toolbar {
-        display: none;
-      }
-      .invoice-sheet {
+      body { padding: 0; }
+      .toolbar { display: none; }
+      .sheet {
         max-width: none;
-        border: 1px solid #000000;
-        page-break-inside: avoid;
+        border: 1px solid #111111;
       }
     }
   </style>
 </head>
 <body>
+  <%
+    const items = (invoice.selectedItems || []).map(function(item) {
+      return {
+        type: item.type || '',
+        name: item.name || '',
+        amount: Number(item.amount || 0)
+      };
+    });
+    const totalInWords = (function(amount) {
+      const ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+      const tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+      function twoDigits(n) {
+        if (n < 20) return ones[n];
+        return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+      }
+      function threeDigits(n) {
+        var out = '';
+        if (n >= 100) {
+          out += ones[Math.floor(n / 100)] + ' Hundred';
+          n = n % 100;
+          if (n) out += ' ';
+        }
+        if (n) out += twoDigits(n);
+        return out.trim();
+      }
+      var value = Math.round(Number(amount || 0));
+      if (!value) return 'Zero Only';
+      var parts = [];
+      var crore = Math.floor(value / 10000000); value %= 10000000;
+      var lakh = Math.floor(value / 100000); value %= 100000;
+      var thousand = Math.floor(value / 1000); value %= 1000;
+      if (crore) parts.push(threeDigits(crore) + ' Crore');
+      if (lakh) parts.push(threeDigits(lakh) + ' Lakh');
+      if (thousand) parts.push(threeDigits(thousand) + ' Thousand');
+      if (value) parts.push(threeDigits(value));
+      return parts.join(' ') + ' Only';
+    })(invoice.netAmount || 0);
+  %>
+
   <div class="toolbar">
     <a href="/register" class="btn">Back</a>
     <div class="toolbar-actions">
-      <a href="/invoice/<%= invoice.visitID %>?print=1" class="btn" target="_blank" rel="noopener noreferrer">Open Print View</a>
+      <a href="/invoice/<%= invoice.visitID %>?print=1" class="btn" onclick="return openInvoicePopup('/invoice/<%= invoice.visitID %>?print=1', true)">Open Print View</a>
       <button type="button" class="btn" onclick="window.print()">Print</button>
     </div>
   </div>
 
-  <div class="invoice-sheet">
-    <div class="header">
+  <div class="sheet">
+    <div class="topline">
       <div>
-        <div class="title">INVOICE</div>
-        <div class="muted">Patient Registration Invoice</div>
+        <div class="title">Invoice</div>
+        <div class="lab-name"><%= invoice.centerName || 'Laboratory Billing' %></div>
+        <div class="muted"><%= invoice.centerAddress || 'Pathology / Laboratory Billing Copy' %></div>
       </div>
       <div class="meta">
-        <div class="meta-row"><strong>Visit Code:</strong> <%= invoice.visitCode || '-' %></div>
-        <div class="meta-row"><strong>Visit ID:</strong> <%= invoice.visitID || '-' %></div>
-        <div class="meta-row"><strong>Date:</strong> <%= formatInvoiceDate(invoice.registrationDateTime) || '-' %></div>
+        <div class="meta-row"><strong>Bill Id:</strong> <%= invoice.visitCode || '-' %></div>
+        <div class="meta-row"><strong>Bill date:</strong> <%= formatInvoiceDate(invoice.registrationDateTime) || '-' %></div>
+        <div class="meta-row"><strong>Payment Type:</strong> <%= invoice.paymentModeName || '-' %></div>
+        <div class="meta-row"><strong>Referred By:</strong> <%= invoice.doctorName || invoice.referName || '-' %></div>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-title">Patient Details</div>
-      <div class="patient-grid">
-        <div class="patient-row"><span class="label">Patient ID</span><span>: <%= invoice.patientID || '-' %></span></div>
-        <div class="patient-row"><span class="label">Patient Name</span><span>: <%= invoice.patientName || '-' %></span></div>
-        <div class="patient-row"><span class="label">Gender</span><span>: <%= invoice.gender || '-' %></span></div>
-        <div class="patient-row"><span class="label">Age</span><span>: <%= invoice.age || '-' %> <%= invoice.ageType || '' %></span></div>
-        <div class="patient-row"><span class="label">Mobile</span><span>: <%= invoice.mobileNumber || '-' %></span></div>
-        <div class="patient-row"><span class="label">Payment Mode</span><span>: <%= invoice.paymentModeName || '-' %></span></div>
-      </div>
+    <div class="summary-grid">
+      <div class="summary-row"><strong>Name</strong><span>: <%= invoice.patientName || '-' %></span></div>
+      <div class="summary-row"><strong>Patient ID</strong><span>: <%= invoice.patientID || '-' %></span></div>
+      <div class="summary-row"><strong>Age/Gender</strong><span>: <%= invoice.age || '-' %> <%= invoice.ageType || '' %> / <%= invoice.gender || '-' %></span></div>
+      <div class="summary-row"><strong>Mobile</strong><span>: <%= invoice.mobileNumber || '-' %></span></div>
     </div>
 
-    <div class="section">
-      <div class="section-title">Items</div>
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 90px;">Type</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (invoice.selectedItems && invoice.selectedItems.length) { %>
-            <% invoice.selectedItems.forEach(function(item) { %>
-              <tr>
-                <td><%= item.type %></td>
-                <td><%= item.name %></td>
-              </tr>
-            <% }); %>
-          <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:48px;">#</th>
+          <th>Test Description</th>
+          <th style="width:120px;" class="amount-cell">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (items.length) { %>
+          <% items.forEach(function(item, index) { %>
             <tr>
-              <td colspan="2">No itemized test details available.</td>
+              <td><%= index + 1 %></td>
+              <td><%= item.name %></td>
+              <td class="amount-cell"><%= item.amount.toFixed(2) %></td>
             </tr>
-          <% } %>
-        </tbody>
-      </table>
-    </div>
+          <% }); %>
+        <% } else { %>
+          <tr>
+            <td colspan="3">No itemized test details available.</td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
 
-    <table class="summary">
+    <table class="totals">
       <tr>
-        <td>Gross Amount</td>
+        <td>Total</td>
         <td><%= Number(invoice.grossAmount || 0).toFixed(2) %></td>
       </tr>
       <tr>
-        <td>Visiting Charges</td>
-        <td><%= Number(invoice.visitingCharges || 0).toFixed(2) %></td>
-      </tr>
-      <tr>
         <td>Discount</td>
-        <td><%= Number(invoice.discountAmount || 0).toFixed(2) %></td>
+        <td class="discount-amount"><%= Number(invoice.discountAmount || 0).toFixed(2) %></td>
       </tr>
       <tr>
-        <td>Net Amount</td>
-        <td><%= Number(invoice.netAmount || 0).toFixed(2) %></td>
+        <td>Payment Made</td>
+        <td class="paid-amount"><%= Number(invoice.paidAmount || 0).toFixed(2) %></td>
       </tr>
-      <tr>
-        <td>Paid Amount</td>
-        <td><%= Number(invoice.paidAmount || 0).toFixed(2) %></td>
-      </tr>
-      <tr>
-        <td>Balance Amount</td>
+      <tr class="balance-box">
+        <td>Balance Due</td>
         <td><%= Number(invoice.balanceAmount || 0).toFixed(2) %></td>
       </tr>
     </table>
 
-    <div class="status-line">
-      Status:
-      <%= Number(invoice.balanceAmount || 0) > 0 ? 'Balance Due' : 'Paid' %>
-    </div>
+    <div class="words">Total In Words: <%= totalInWords %></div>
   </div>
 
+  <script src="/js/main.js"></script>
   <% if (autoPrint) { %>
   <script>
     window.addEventListener('load', function() {

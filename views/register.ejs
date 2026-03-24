@@ -49,6 +49,74 @@
     .success-actions .btn {
       text-decoration: none;
     }
+    .form-group.has-add-btn {
+      position: relative;
+    }
+    .inline-label {
+      display: block;
+      margin-bottom: 6px;
+      min-height: 20px;
+    }
+    .inline-label .form-label {
+      margin-bottom: 0;
+      line-height: 1.2;
+      display: inline-block;
+    }
+    .btn-add-master {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--blue-200);
+      border-radius: 999px;
+      background: var(--blue-50);
+      color: var(--blue-700);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+    .btn-add-master:hover {
+      background: var(--blue-600);
+      border-color: var(--blue-600);
+      color: var(--white);
+    }
+    .master-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .reg-datetime-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 118px;
+      gap: 10px;
+      align-items: start;
+    }
+    .calendar-pop {
+      display: none;
+      position: absolute;
+      z-index: 999;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      width: 300px;
+      padding: 16px;
+      margin-top: 4px;
+    }
+    .master-form-grid .form-group.full {
+      grid-column: 1 / -1;
+    }
+    @media (max-width: 640px) {
+      .master-form-grid {
+        grid-template-columns: 1fr;
+      }
+      .reg-datetime-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -75,10 +143,10 @@
           <% if (queryParams.visitID) { %> | <strong>Visit ID: <%= queryParams.visitID %></strong><% } %>
           <% if (queryParams.invoiceUrl) { %>
           <div class="success-actions">
-            <a href="<%= queryParams.invoiceUrl %>" class="btn btn-secondary">
+            <a href="<%= queryParams.invoiceUrl %>" class="btn btn-secondary" onclick="return openInvoicePopup('<%= queryParams.invoiceUrl %>', false)">
               <i class="fas fa-file-invoice"></i> Invoice
             </a>
-            <a href="<%= queryParams.printInvoiceUrl %>" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+            <a href="<%= queryParams.printInvoiceUrl %>" class="btn btn-primary" onclick="return openInvoicePopup('<%= queryParams.printInvoiceUrl %>', true)">
               <i class="fas fa-print"></i> Print Invoice
             </a>
           </div>
@@ -267,18 +335,68 @@
             <h3 class="card-title"><i class="fas fa-hospital" style="color:#8b5cf6;margin-right:6px;"></i>Visit Details</h3>
           </div>
           <div class="card-body">
-            <div class="form-grid form-grid-3">
+            <div class="form-grid form-grid-2">
               <div class="form-group">
                 <label class="form-label">Visit No.</label>
                 <input type="text" name="visitNo" id="visitNo" class="form-control" readonly placeholder="Auto-generated" style="background:var(--gray-50);" />
               </div>
               <div class="form-group">
                 <label class="form-label">Registration Date & Time <span class="required">*</span></label>
-                <input type="datetime-local" name="registrationDateTime" id="regDateTime" class="form-control" required />
+                <div class="reg-datetime-grid">
+                  <div style="position:relative;">
+                    <input type="text" id="regDateDisplay" class="form-control" placeholder="DD-MM-YYYY"
+                      readonly onclick="toggleRegCalendar()"
+                      style="cursor:pointer;background:white;" autocomplete="off" />
+                    <i class="fas fa-calendar-alt" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--gray-400);pointer-events:none;"></i>
+                    <div id="regCalendar" class="calendar-pop">
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <button type="button" onclick="changeRegMonth(-1)" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--gray-600);padding:4px 8px;">&#8249;</button>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                          <select id="regCalMonth" onchange="renderRegCalendar()" style="border:1px solid var(--gray-200);border-radius:6px;padding:4px 8px;font-size:0.845rem;cursor:pointer;outline:none;">
+                            <option value="0">January</option><option value="1">February</option>
+                            <option value="2">March</option><option value="3">April</option>
+                            <option value="4">May</option><option value="5">June</option>
+                            <option value="6">July</option><option value="7">August</option>
+                            <option value="8">September</option><option value="9">October</option>
+                            <option value="10">November</option><option value="11">December</option>
+                          </select>
+                          <input type="number" id="regCalYear" onchange="renderRegCalendar()" oninput="renderRegCalendar()"
+                            style="border:1px solid var(--gray-200);border-radius:6px;padding:4px 8px;font-size:0.845rem;width:72px;outline:none;font-family:var(--font-mono);font-weight:700;"
+                            min="1900" max="2100" />
+                        </div>
+                        <button type="button" onclick="changeRegMonth(1)" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--gray-600);padding:4px 8px;">&#8250;</button>
+                      </div>
+                      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px;">
+                        <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Su</div>
+                        <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Mo</div>
+                        <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Tu</div>
+                        <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">We</div>
+                        <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Th</div>
+                        <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Fr</div>
+                        <div style="text-align:center;font-size:0.68rem;font-weight:700;color:var(--gray-400);padding:4px 0;">Sa</div>
+                      </div>
+                      <div id="regCalDays" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
+                      <div style="margin-top:10px;display:flex;justify-content:space-between;">
+                        <button type="button" onclick="selectRegToday()" style="font-size:0.75rem;color:var(--blue-600);background:none;border:none;cursor:pointer;font-weight:600;">Today</button>
+                        <button type="button" onclick="clearRegDate()" style="font-size:0.75rem;color:var(--gray-400);background:none;border:none;cursor:pointer;">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                  <input type="time" id="regTimeInput" class="form-control" onchange="syncRegistrationDateTime()" />
+                </div>
+                <input type="hidden" name="registrationDateTime" id="regDateTime" required />
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Center / Lab</label>
+            </div>
+
+            <div class="form-grid form-grid-3" style="margin-top:16px;">
+              <div class="form-group has-add-btn">
+                <div class="inline-label">
+                  <label class="form-label">Center / Lab</label>
+                  <button type="button" class="btn-add-master" title="Add Center / Lab" onclick="openMasterModal('center')">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
                 <div class="autocomplete-wrapper">
                   <input type="text" id="centerInput" class="form-control" placeholder="Search center..." autocomplete="off" />
                   <input type="hidden" name="centerId" id="centerIdInput" />
@@ -287,8 +405,13 @@
                 </div>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Referred By</label>
+              <div class="form-group has-add-btn">
+                <div class="inline-label">
+                  <label class="form-label">Referred By</label>
+                  <button type="button" class="btn-add-master" title="Add Referred By" onclick="openMasterModal('refer')">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
                 <div class="autocomplete-wrapper">
                   <input type="text" id="referInput" class="form-control" placeholder="Search referral..." autocomplete="off" />
                   <input type="hidden" name="referedId" id="referIdInput" />
@@ -297,8 +420,13 @@
                 </div>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Doctor</label>
+              <div class="form-group has-add-btn">
+                <div class="inline-label">
+                  <label class="form-label">Doctor</label>
+                  <button type="button" class="btn-add-master" title="Add Doctor" onclick="openMasterModal('doctor')">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
                 <div class="autocomplete-wrapper">
                   <input type="text" id="doctorInput" class="form-control" placeholder="Search doctor..." autocomplete="off" />
                   <input type="hidden" name="doctorId" id="doctorIdInput" />
@@ -347,16 +475,131 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="masterModal">
+  <div class="modal" style="max-width:560px;width:calc(100% - 24px);">
+    <div class="modal-header">
+      <h3 class="modal-title" id="masterModalTitle">Add Item</h3>
+      <button type="button" class="modal-close" onclick="closeMasterModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="masterCreateForm">
+        <div class="master-form-grid" id="masterFormFields"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeMasterModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="masterSaveBtn" onclick="submitMasterModal()">
+        <i class="fas fa-save"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/main.js"></script>
 <script>
-  // Set default datetime
-  (function() {
-    var dt = document.getElementById('regDateTime');
-    if (dt) {
-      var now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      dt.value = now.toISOString().slice(0, 16);
+  // Registration date/time picker
+  var regSelected = null;
+  var regViewYear = new Date().getFullYear();
+  var regViewMonth = new Date().getMonth();
+
+  function formatDateParts(day, month, year) {
+    return String(day).padStart(2, '0') + '-' + String(month + 1).padStart(2, '0') + '-' + year;
+  }
+
+  function formatIsoDateParts(day, month, year) {
+    return year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+  }
+
+  function syncRegistrationDateTime() {
+    var hidden = document.getElementById('regDateTime');
+    var timeInput = document.getElementById('regTimeInput');
+    if (!regSelected || !timeInput.value) {
+      hidden.value = '';
+      return;
     }
+    hidden.value = formatIsoDateParts(regSelected.d, regSelected.m, regSelected.y) + 'T' + timeInput.value;
+  }
+
+  function toggleRegCalendar() {
+    var cal = document.getElementById('regCalendar');
+    if (cal.style.display === 'none' || !cal.style.display) {
+      document.getElementById('regCalYear').value = regViewYear;
+      document.getElementById('regCalMonth').value = regViewMonth;
+      renderRegCalendar();
+      cal.style.display = 'block';
+    } else {
+      cal.style.display = 'none';
+    }
+  }
+
+  function changeRegMonth(dir) {
+    regViewMonth += dir;
+    if (regViewMonth > 11) { regViewMonth = 0; regViewYear++; }
+    if (regViewMonth < 0) { regViewMonth = 11; regViewYear--; }
+    document.getElementById('regCalMonth').value = regViewMonth;
+    document.getElementById('regCalYear').value = regViewYear;
+    renderRegCalendar();
+  }
+
+  function renderRegCalendar() {
+    regViewMonth = parseInt(document.getElementById('regCalMonth').value, 10);
+    var yr = parseInt(document.getElementById('regCalYear').value, 10);
+    if (!isNaN(yr) && yr >= 1900 && yr <= 2100) regViewYear = yr;
+
+    var firstDay = new Date(regViewYear, regViewMonth, 1).getDay();
+    var daysInMonth = new Date(regViewYear, regViewMonth + 1, 0).getDate();
+    var today = new Date();
+    var html = '';
+
+    for (var i = 0; i < firstDay; i++) html += '<div></div>';
+
+    for (var d = 1; d <= daysInMonth; d++) {
+      var isToday = (d === today.getDate() && regViewMonth === today.getMonth() && regViewYear === today.getFullYear());
+      var isSel = regSelected && (d === regSelected.d && regViewMonth === regSelected.m && regViewYear === regSelected.y);
+      var style = 'text-align:center;padding:6px 2px;border-radius:6px;font-size:0.8rem;cursor:pointer;'
+        + (isSel ? 'background:var(--blue-600);color:white;font-weight:700;'
+        : isToday ? 'background:var(--blue-50);color:var(--blue-700);font-weight:700;'
+        : 'color:var(--gray-700);');
+
+      html += '<div style="' + style + '" onclick="selectRegDay(' + d + ')">' + d + '</div>';
+    }
+
+    document.getElementById('regCalDays').innerHTML = html;
+  }
+
+  function selectRegDay(d) {
+    regSelected = { d: d, m: regViewMonth, y: regViewYear };
+    document.getElementById('regDateDisplay').value = formatDateParts(d, regViewMonth, regViewYear);
+    syncRegistrationDateTime();
+    renderRegCalendar();
+    document.getElementById('regCalendar').style.display = 'none';
+  }
+
+  function selectRegToday() {
+    var now = new Date();
+    regViewYear = now.getFullYear();
+    regViewMonth = now.getMonth();
+    document.getElementById('regCalMonth').value = regViewMonth;
+    document.getElementById('regCalYear').value = regViewYear;
+    selectRegDay(now.getDate());
+  }
+
+  function clearRegDate() {
+    regSelected = null;
+    document.getElementById('regDateDisplay').value = '';
+    document.getElementById('regDateTime').value = '';
+    document.getElementById('regTimeInput').value = '';
+    document.getElementById('regCalendar').style.display = 'none';
+  }
+
+  (function initRegDateTime() {
+    var now = new Date();
+    regSelected = { d: now.getDate(), m: now.getMonth(), y: now.getFullYear() };
+    regViewYear = regSelected.y;
+    regViewMonth = regSelected.m;
+    document.getElementById('regDateDisplay').value = formatDateParts(regSelected.d, regSelected.m, regSelected.y);
+    document.getElementById('regTimeInput').value = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    syncRegistrationDateTime();
   })();
 
   // Auto-generate visit code
@@ -497,8 +740,13 @@ function clearDob() {
 document.addEventListener('click', function(e) {
   var cal = document.getElementById('dobCalendar');
   var inp = document.getElementById('dobDisplay');
+  var regCal = document.getElementById('regCalendar');
+  var regInp = document.getElementById('regDateDisplay');
   if (cal && !cal.contains(e.target) && e.target !== inp) {
     cal.style.display = 'none';
+  }
+  if (regCal && !regCal.contains(e.target) && e.target !== regInp) {
+    regCal.style.display = 'none';
   }
 });
 // ─────────────────────────────────────────────────────────────
@@ -655,6 +903,172 @@ document.addEventListener('click', function(e) {
   setupAC('centerInput', 'centerDropdown', '/suggest-lab-names',    'CenterID', 'CenterName', 'centerIdInput', 'centerNameInput');
   setupAC('referInput',  'referDropdown',  '/suggest-refer-names',  'ReferID',  'ReferName',  'referIdInput', 'referNameInput');
   setupAC('doctorInput', 'doctorDropdown', '/suggest-doctor-names', 'DoctorID', 'DoctorName', 'doctorIdInput', 'doctorNameInput');
+
+  var masterConfigs = {
+    center: {
+      title: 'Add Center / Lab',
+      endpoint: '/api/master/center',
+      idField: 'CenterID',
+      nameField: 'CenterName',
+      targetInputId: 'centerInput',
+      targetHiddenId: 'centerIdInput',
+      targetHiddenNameId: 'centerNameInput',
+      fields: [
+        { name: 'centerName', label: 'Center / Lab Name', required: true, placeholder: 'Enter center / lab name', className: 'full' },
+        { name: 'centerShortName', label: 'Short Name', placeholder: 'Optional short name' },
+        { name: 'mobileNumber', label: 'Mobile', placeholder: 'Mobile number' },
+        { name: 'emailId', label: 'Email', type: 'email', placeholder: 'Email address' },
+        { name: 'address', label: 'Address', placeholder: 'Address', className: 'full' }
+      ]
+    },
+    refer: {
+      title: 'Add Referred By',
+      endpoint: '/api/master/refer',
+      idField: 'ReferID',
+      nameField: 'ReferName',
+      targetInputId: 'referInput',
+      targetHiddenId: 'referIdInput',
+      targetHiddenNameId: 'referNameInput',
+      fields: [
+        { name: 'referName', label: 'Referred By Name', required: true, placeholder: 'Enter referral name', className: 'full' },
+        { name: 'mobileNo', label: 'Mobile', placeholder: 'Mobile number' },
+        { name: 'emailId', label: 'Email', type: 'email', placeholder: 'Email address' },
+        { name: 'referAddress', label: 'Address', placeholder: 'Address', className: 'full' }
+      ]
+    },
+    doctor: {
+      title: 'Add Doctor',
+      endpoint: '/api/master/doctor',
+      idField: 'DoctorID',
+      nameField: 'DoctorName',
+      targetInputId: 'doctorInput',
+      targetHiddenId: 'doctorIdInput',
+      targetHiddenNameId: 'doctorNameInput',
+      fields: [
+        { name: 'doctorName', label: 'Doctor Name', required: true, placeholder: 'Enter doctor name', className: 'full' },
+        { name: 'mobileNo', label: 'Mobile', placeholder: 'Mobile number' },
+        { name: 'emailId', label: 'Email', type: 'email', placeholder: 'Email address' }
+      ]
+    }
+  };
+  var activeMasterType = null;
+
+  function buildMasterField(field) {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'form-group' + (field.className ? ' ' + field.className : '');
+
+    var label = document.createElement('label');
+    label.className = 'form-label';
+    label.textContent = field.label + (field.required ? ' *' : '');
+    wrapper.appendChild(label);
+
+    var input = document.createElement(field.type === 'textarea' ? 'textarea' : 'input');
+    if (field.type !== 'textarea') input.type = field.type || 'text';
+    input.className = 'form-control';
+    input.name = field.name;
+    input.id = 'masterField_' + field.name;
+    input.placeholder = field.placeholder || '';
+    if (field.required) input.required = true;
+    if (field.rows && field.type === 'textarea') input.rows = field.rows;
+    wrapper.appendChild(input);
+    return wrapper;
+  }
+
+  function openMasterModal(type) {
+    var config = masterConfigs[type];
+    if (!config) return;
+
+    activeMasterType = type;
+    document.getElementById('masterModalTitle').textContent = config.title;
+    var fieldsWrap = document.getElementById('masterFormFields');
+    fieldsWrap.innerHTML = '';
+    config.fields.forEach(function(field) {
+      fieldsWrap.appendChild(buildMasterField(field));
+    });
+
+    if (type === 'doctor') {
+      var currentCenterId = document.getElementById('centerIdInput').value;
+      if (currentCenterId) {
+        var hiddenCenterId = document.createElement('input');
+        hiddenCenterId.type = 'hidden';
+        hiddenCenterId.name = 'centerId';
+        hiddenCenterId.value = currentCenterId;
+        document.getElementById('masterCreateForm').appendChild(hiddenCenterId);
+      }
+    }
+
+    document.getElementById('masterCreateForm').reset();
+    document.getElementById('masterModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function() {
+      var firstInput = fieldsWrap.querySelector('.form-control');
+      if (firstInput) firstInput.focus();
+    }, 30);
+  }
+
+  function closeMasterModal() {
+    activeMasterType = null;
+    document.getElementById('masterModal').classList.remove('open');
+    document.body.style.overflow = '';
+    var form = document.getElementById('masterCreateForm');
+    form.reset();
+    Array.from(form.querySelectorAll('input[type="hidden"]')).forEach(function(node) { node.remove(); });
+  }
+
+  function setMasterSelection(type, item) {
+    var config = masterConfigs[type];
+    if (!config || !item) return;
+    document.getElementById(config.targetInputId).value = item[config.nameField] || '';
+    document.getElementById(config.targetHiddenId).value = item[config.idField] || '';
+    if (config.targetHiddenNameId) {
+      document.getElementById(config.targetHiddenNameId).value = item[config.nameField] || '';
+    }
+  }
+
+  function submitMasterModal() {
+    var config = masterConfigs[activeMasterType];
+    var form = document.getElementById('masterCreateForm');
+    if (!config || !form.reportValidity()) return;
+
+    var payload = {};
+    Array.from(form.elements).forEach(function(el) {
+      if (el.name) payload[el.name] = el.value.trim();
+    });
+
+    var saveBtn = document.getElementById('masterSaveBtn');
+    saveBtn.disabled = true;
+
+    fetch(config.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+      .then(function(result) {
+        if (!result.ok || !result.data.success) {
+          throw new Error(result.data.message || 'Failed to save item');
+        }
+        setMasterSelection(activeMasterType, result.data.item);
+        closeMasterModal();
+        showToast(result.data.existing ? 'Item already existed and has been selected' : 'Item added successfully', 'success');
+      })
+      .catch(function(err) {
+        showToast(err.message || 'Failed to save item', 'error');
+      })
+      .finally(function() {
+        saveBtn.disabled = false;
+      });
+  }
+
+  document.getElementById('masterModal').addEventListener('click', function(e) {
+    if (e.target.id === 'masterModal') closeMasterModal();
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('masterModal').classList.contains('open')) {
+      closeMasterModal();
+    }
+  });
     // ── Phone validation ──
   function validatePhone(input) {
     var err = document.getElementById('phoneError');

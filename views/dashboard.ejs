@@ -102,6 +102,107 @@
       grid-template-columns: 1fr 320px;
       gap: 20px;
     }
+    .chart-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xs);
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .chart-head {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--gray-100);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .chart-title {
+      font-size: 0.96rem;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+    .chart-subtitle {
+      font-size: 0.78rem;
+      color: var(--gray-400);
+      margin-top: 3px;
+    }
+    .chart-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .chart-date-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .chart-date-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .chart-date-wrap {
+      position: relative;
+    }
+    .chart-date-input {
+      width: 145px;
+      padding: 9px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      background: var(--white);
+      color: var(--gray-700);
+      font-size: 0.845rem;
+      cursor: pointer;
+    }
+    .chart-action-btn {
+      border: 1px solid var(--gray-200);
+      background: var(--white);
+      color: var(--gray-600);
+      border-radius: var(--radius-lg);
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .chart-action-btn.primary {
+      background: var(--blue-600);
+      color: #fff;
+      border-color: var(--blue-600);
+    }
+    .chart-body {
+      padding: 18px 20px 20px;
+    }
+    .chart-svg-wrap {
+      width: 100%;
+      height: 280px;
+      background: linear-gradient(180deg, #fbfdff 0%, #ffffff 100%);
+      border: 1px solid var(--gray-100);
+      border-radius: var(--radius-xl);
+      padding: 12px;
+    }
+    .chart-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .chart-summary {
+      margin-top: 14px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      font-size: 0.82rem;
+      color: var(--gray-500);
+    }
+    .chart-summary strong {
+      color: var(--gray-900);
+      font-family: var(--font-mono);
+    }
     @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -193,6 +294,12 @@
                 </div>
                 <span class="quick-card-label">Barcode Print</span>
               </a>
+              <a href="/financial-analysis" class="quick-card">
+                <div class="quick-card-icon" style="background:#ecfeff;color:#0f766e;">
+                  <i class="fas fa-chart-line"></i>
+                </div>
+                <span class="quick-card-label">Financial Analysis</span>
+              </a>
               <a href="/result" class="quick-card">
                 <div class="quick-card-icon" style="background:var(--blue-50);color:var(--blue-600);">
                   <i class="fas fa-edit"></i>
@@ -217,6 +324,41 @@
                 </div>
                 <span class="quick-card-label">Search</span>
               </a>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-head">
+              <div>
+                <div class="chart-title">Patient Registration Trend</div>
+                <div class="chart-subtitle">Registrations for the selected date range</div>
+              </div>
+              <div class="chart-filters">
+                <div class="chart-date-group">
+                  <span class="chart-date-label">From Date</span>
+                  <div class="chart-date-wrap">
+                    <input type="text" id="trendFromDate" class="chart-date-input" value="<%= fromDate %>" placeholder="DD-MM-YYYY" />
+                  </div>
+                </div>
+                <div class="chart-date-group">
+                  <span class="chart-date-label">To Date</span>
+                  <div class="chart-date-wrap">
+                    <input type="text" id="trendToDate" class="chart-date-input" value="<%= toDate %>" placeholder="DD-MM-YYYY" />
+                  </div>
+                </div>
+                <button type="button" class="chart-action-btn primary" onclick="applyTrendFilter()">Apply</button>
+                <button type="button" class="chart-action-btn" onclick="resetTrendFilter()">Reset</button>
+              </div>
+            </div>
+            <div class="chart-body">
+              <div class="chart-svg-wrap">
+                <svg id="patientTrendChart" class="chart-svg" viewBox="0 0 860 280" preserveAspectRatio="none"></svg>
+              </div>
+              <div class="chart-summary">
+                <span>Total Registrations: <strong id="trendTotal">0</strong></span>
+                <span>Average / Day: <strong id="trendAverage">0</strong></span>
+                <span>Peak Day: <strong id="trendPeak">-</strong></span>
+              </div>
             </div>
           </div>
         </div>
@@ -271,12 +413,100 @@
 
 <script src="/js/main.js"></script>
 <script>
+  var patientTrendData = <%- JSON.stringify(patientTrend || []) %>;
+
   var todayEl = document.getElementById('todayFull');
   if (todayEl) {
     todayEl.textContent = new Date().toLocaleDateString('en-IN', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
   }
+
+  function renderPatientTrend() {
+    var svg = document.getElementById('patientTrendChart');
+    if (!svg) return;
+    var data = patientTrendData.slice();
+    if (!data.length) {
+      svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#94a3b8" font-size="16">No trend data available</text>';
+      document.getElementById('trendTotal').textContent = '0';
+      document.getElementById('trendAverage').textContent = '0';
+      document.getElementById('trendPeak').textContent = '-';
+      return;
+    }
+
+    var width = 860;
+    var height = 280;
+    var padLeft = 48;
+    var padRight = 18;
+    var padTop = 18;
+    var padBottom = 42;
+    var chartW = width - padLeft - padRight;
+    var chartH = height - padTop - padBottom;
+    var maxValue = Math.max.apply(null, data.map(function(item) { return item.count; })) || 1;
+
+    var points = data.map(function(item, index) {
+      var x = padLeft + (data.length === 1 ? chartW / 2 : (chartW * index / (data.length - 1)));
+      var y = padTop + chartH - ((item.count / maxValue) * chartH);
+      return { x: x, y: y, label: item.label, count: item.count };
+    });
+
+    var linePath = points.map(function(point, index) {
+      return (index === 0 ? 'M' : 'L') + point.x.toFixed(2) + ' ' + point.y.toFixed(2);
+    }).join(' ');
+
+    var areaPath = linePath + ' L ' + points[points.length - 1].x.toFixed(2) + ' ' + (padTop + chartH) + ' L ' + points[0].x.toFixed(2) + ' ' + (padTop + chartH) + ' Z';
+
+    var gridLines = '';
+    for (var i = 0; i <= 4; i++) {
+      var y = padTop + (chartH * i / 4);
+      var value = Math.round(maxValue - (maxValue * i / 4));
+      gridLines += '<line x1="' + padLeft + '" y1="' + y + '" x2="' + (width - padRight) + '" y2="' + y + '" stroke="#e2e8f0" stroke-dasharray="4 6" />';
+      gridLines += '<text x="' + (padLeft - 10) + '" y="' + (y + 4) + '" text-anchor="end" fill="#94a3b8" font-size="11">' + value + '</text>';
+    }
+
+    var labels = points.map(function(point, index) {
+      var shortLabel = point.label.slice(0, 5);
+      if (data.length > 15 && index % 2 === 1) shortLabel = '';
+      return '<text x="' + point.x + '" y="' + (height - 14) + '" text-anchor="middle" fill="#64748b" font-size="11">' + shortLabel + '</text>';
+    }).join('');
+
+    var dots = points.map(function(point) {
+      return '<circle cx="' + point.x + '" cy="' + point.y + '" r="4.5" fill="#2563eb" stroke="#ffffff" stroke-width="2"><title>' + point.label + ': ' + point.count + '</title></circle>';
+    }).join('');
+
+    svg.innerHTML =
+      '<defs><linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#93c5fd" stop-opacity="0.45"/><stop offset="100%" stop-color="#93c5fd" stop-opacity="0.04"/></linearGradient></defs>' +
+      gridLines +
+      '<path d="' + areaPath + '" fill="url(#trendFill)" />' +
+      '<path d="' + linePath + '" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />' +
+      dots +
+      labels;
+
+    var total = data.reduce(function(sum, item) { return sum + item.count; }, 0);
+    var peak = data.reduce(function(best, item) { return item.count > best.count ? item : best; }, data[0]);
+    document.getElementById('trendTotal').textContent = total;
+    document.getElementById('trendAverage').textContent = (total / data.length).toFixed(1);
+    document.getElementById('trendPeak').textContent = peak.label + ' (' + peak.count + ')';
+  }
+
+  initDatePicker('trendFromDate');
+  initDatePicker('trendToDate');
+
+  function applyTrendFilter() {
+    var from = document.getElementById('trendFromDate').value;
+    var to = document.getElementById('trendToDate').value;
+    if (!from || !to) {
+      showToast('Please select both From Date and To Date', 'warning');
+      return;
+    }
+    window.location.href = '/dashboard?fromDate=' + encodeURIComponent(from) + '&toDate=' + encodeURIComponent(to);
+  }
+
+  function resetTrendFilter() {
+    window.location.href = '/dashboard';
+  }
+
+  renderPatientTrend();
 </script>
 </body>
 </html>

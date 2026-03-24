@@ -3,67 +3,276 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tests & Billing — LIMS</title>
+  <title>Tests & Billing - LIMS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="/css/main.css">
   <style>
-    .patient-banner {
-      background: var(--blue-50);
-      border: 1px solid var(--blue-100);
-      border-radius: var(--radius-lg);
-      padding: 14px 20px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      margin-bottom: 24px;
-    }
-    .pb-item { }
-    .pb-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-400); font-weight: 600; }
-    .pb-value { font-size: 0.875rem; font-weight: 600; color: var(--gray-800); margin-top: 1px; }
-
-    .receipt-box {
-      background: var(--gray-50);
+    .billing-shell {
+      background: var(--white);
       border: 1px solid var(--gray-200);
-      border-radius: var(--radius-md);
-      padding: 16px 20px;
-      margin-top: 16px;
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
     }
-    .receipt-line {
+    .billing-head {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--gray-100);
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 6px 0;
-      font-size: 0.875rem;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .billing-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+    .billing-layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      min-height: 560px;
+    }
+    .billing-side {
+      border-right: 1px solid var(--gray-100);
+      padding: 22px 20px;
+      background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+    }
+    .billing-side h4 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--gray-400);
+      margin-bottom: 16px;
+    }
+    .patient-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 2px;
+    }
+    .patient-id {
+      font-size: 0.82rem;
+      color: var(--blue-700);
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .side-stack {
+      display: grid;
+      gap: 14px;
+    }
+    .side-block {
+      padding-bottom: 14px;
       border-bottom: 1px solid var(--gray-100);
     }
-    .receipt-line:last-child { border-bottom: none; }
-    .receipt-line .rl-label { color: var(--gray-500); }
-    .receipt-line .rl-value { font-weight: 600; font-family: var(--font-mono); color: var(--gray-800); }
-    .receipt-line.total .rl-label { font-weight: 700; color: var(--gray-800); font-size: 0.95rem; }
-    .receipt-line.total .rl-value { color: var(--blue-700); font-size: 1rem; }
-    .receipt-line.balance .rl-value { color: var(--amber-600); }
+    .side-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--gray-400);
+      margin-bottom: 4px;
+    }
+    .side-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--gray-800);
+    }
+    .billing-main {
+      padding: 22px 24px;
+      display: grid;
+      gap: 22px;
+    }
+    .bill-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .bill-table th,
+    .bill-table td {
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--gray-100);
+      text-align: left;
+      vertical-align: middle;
+    }
+    .bill-table th {
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--gray-400);
+      font-weight: 700;
+      background: var(--gray-50);
+    }
+    .bill-table td {
+      font-size: 0.88rem;
+      color: var(--gray-800);
+    }
+    .bill-row-no {
+      width: 60px;
+      color: var(--gray-500);
+      font-weight: 600;
+    }
+    .bill-action {
+      width: 70px;
+      text-align: center;
+    }
+    .line-price {
+      width: 140px;
+      text-align: right;
+    }
+    .line-price-input {
+      width: 100%;
+      min-width: 110px;
+      text-align: right;
+      font-family: var(--font-mono);
+    }
+    .billing-bottom {
+      display: grid;
+      grid-template-columns: 1.15fr 1.05fr 0.9fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .bill-panel {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      background: var(--white);
+      min-height: 100%;
+    }
+    .bill-panel-title {
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--gray-400);
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    .bill-inline-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .bill-total-list {
+      display: grid;
+      gap: 10px;
+    }
+    .bill-total-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .bill-total-row:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .bill-total-row strong {
+      color: var(--gray-900);
+      font-size: 0.96rem;
+    }
+    .bill-total-value {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--gray-800);
+    }
+    .bill-total-value.due {
+      color: var(--amber-600);
+    }
+    .bill-total-value.paid {
+      color: var(--green-600);
+    }
+    .pay-modes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .pay-mode-btn {
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      padding: 9px 16px;
+      background: var(--white);
+      color: var(--gray-600);
+      font-weight: 700;
+      transition: all var(--transition-fast);
+    }
+    .pay-mode-btn.active {
+      background: var(--blue-50);
+      border-color: var(--blue-500);
+      color: var(--blue-700);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.10);
+    }
+    .due-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+    .bill-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 18px 24px 24px;
+      border-top: 1px solid var(--gray-100);
+      background: var(--gray-50);
+    }
+    .empty-items {
+      text-align: center;
+      color: var(--gray-400);
+      padding: 28px 12px;
+      font-size: 0.9rem;
+    }
+    @media (max-width: 1100px) {
+      .billing-layout {
+        grid-template-columns: 1fr;
+      }
+      .billing-side {
+        border-right: none;
+        border-bottom: 1px solid var(--gray-100);
+      }
+      .billing-bottom {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 720px) {
+      .bill-inline-grid {
+        grid-template-columns: 1fr;
+      }
+      .bill-table {
+        display: block;
+        overflow-x: auto;
+      }
+      .bill-footer {
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+    }
   </style>
 </head>
 <body>
+<%
+  const testNames = String(registerData.selectedTestNames || '').split(',').map(v => v.trim()).filter(Boolean);
+  const profileNames = String(registerData.selectedProfileNames || '').split(',').map(v => v.trim()).filter(Boolean);
+  const billItems = testNames.map(name => ({ type: 'Test', name: name }))
+    .concat(profileNames.map(name => ({ type: 'Profile', name: name })));
+  const patientCode = registerData.visitNo || 'New Visit';
+%>
 <div class="app-shell">
-
   <%- include('partials/sidebar', { activePage: 'register', user: user }) %>
 
   <div class="main-content">
     <header class="topbar">
       <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
-      <div class="topbar-title">Tests &amp; Payment — Step 2</div>
+      <div class="topbar-title">Tests &amp; Billing - Step 2</div>
       <div class="topbar-right">
         <div class="topbar-date"><i class="fas fa-calendar-alt"></i><span id="currentDate"></span></div>
       </div>
     </header>
 
     <main class="page-content">
-
-      <!-- Step Wizard -->
       <div class="step-wizard">
         <div class="step done">
           <div class="step-circle"><i class="fas fa-check" style="font-size:0.7rem;"></i></div>
@@ -81,185 +290,285 @@
         </div>
       </div>
 
-      <!-- Patient summary banner -->
-      <% if (registerData && registerData.patientName) { %>
-      <div class="patient-banner">
-        <div style="width:40px;height:40px;border-radius:50%;background:var(--blue-600);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;flex-shrink:0;">
-          <%= registerData.patientName ? registerData.patientName[0].toUpperCase() : 'P' %>
-        </div>
-        <div class="pb-item">
-          <div class="pb-label">Patient</div>
-          <div class="pb-value"><%= registerData.salutation || '' %> <%= registerData.patientName || '—' %></div>
-        </div>
-        <% if (registerData.gender) { %>
-        <div class="pb-item">
-          <div class="pb-label">Gender</div>
-          <div class="pb-value"><%= registerData.gender %></div>
-        </div>
-        <% } %>
-        <% if (registerData.age) { %>
-        <div class="pb-item">
-          <div class="pb-label">Age</div>
-          <div class="pb-value"><%= registerData.age %> <%= registerData.ageType || 'Years' %></div>
-        </div>
-        <% } %>
-        <% if (registerData.phone) { %>
-        <div class="pb-item">
-          <div class="pb-label">Mobile</div>
-          <div class="pb-value"><%= registerData.countryCode || '' %> <%= registerData.phone %></div>
-        </div>
-        <% } %>
-      </div>
-      <% } %>
-
       <form action="/submit" method="POST" enctype="multipart/form-data" id="finalForm">
+        <input type="hidden" name="paymentMode" id="paymentModeInput" required />
         <input type="hidden" name="paymentModeName" id="paymentModeName" />
+        <input type="hidden" name="grossAmount" id="grossAmount" value="0" />
 
-        <!-- Payment -->
-        <div class="card mb-20">
-          <div class="card-header">
-            <h3 class="card-title">
-              <i class="fas fa-credit-card" style="color:#16a34a;margin-right:6px;"></i>Payment Details
-            </h3>
+        <div class="billing-shell">
+          <div class="billing-head">
+            <div class="billing-title">Billing</div>
+            <div class="text-sm text-muted">Review package pricing, discount, payment, and due amount</div>
           </div>
-          <div class="card-body">
-            <div class="form-grid form-grid-3">
 
-              <div class="form-group">
-                <label class="form-label">Payment Mode <span class="required">*</span></label>
-                <select name="paymentMode" class="form-control" required>
-                  <option value="">Select payment mode</option>
-                  <% if (paymentModes && paymentModes.length) { %>
-                    <% paymentModes.forEach(function(pm) { %>
-                    <option value="<%= pm.PayModeID %>"><%= pm.PaymentMode %></option>
+          <div class="billing-layout">
+            <aside class="billing-side">
+              <h4>Patient Details</h4>
+              <div class="patient-name"><%= registerData.patientName || 'Patient' %></div>
+              <div class="patient-id"><%= patientCode %></div>
+
+              <div class="side-stack">
+                <div class="side-block">
+                  <div class="side-label">Gender / Age</div>
+                  <div class="side-value"><%= registerData.gender || '-' %> / <%= registerData.age || '-' %> <%= registerData.ageType || '' %></div>
+                </div>
+                <div class="side-block">
+                  <div class="side-label">Contact Number</div>
+                  <div class="side-value"><%= registerData.phone ? ((registerData.countryCode || '') + ' ' + registerData.phone) : '-' %></div>
+                </div>
+                <div class="side-block">
+                  <div class="side-label">Billing Date</div>
+                  <div class="side-value"><%= registerData.registrationDateTime || '-' %></div>
+                </div>
+                <div class="side-block">
+                  <div class="side-label">Organisation</div>
+                  <div class="side-value"><%= registerData.referName || registerData.centerName || '-' %></div>
+                </div>
+                <div class="side-block">
+                  <div class="side-label">Doctor</div>
+                  <div class="side-value"><%= registerData.doctorName || '-' %></div>
+                </div>
+              </div>
+            </aside>
+
+            <section class="billing-main">
+              <div>
+                <table class="bill-table">
+                  <thead>
+                    <tr>
+                      <th style="width:72px;">Sr No.</th>
+                      <th>Test / Package</th>
+                      <th style="width:160px;">Price</th>
+                      <th style="width:72px;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="billingItemTable">
+                    <% if (billItems.length) { %>
+                      <% billItems.forEach(function(item, index) { %>
+                        <tr class="bill-item-row" data-index="<%= index %>">
+                          <td class="bill-row-no"><%= index + 1 %></td>
+                          <td>
+                            <div style="font-weight:600;"><%= item.name %></div>
+                            <div class="text-xs text-muted"><%= item.type %></div>
+                          </td>
+                          <td class="line-price">
+                            <input type="number" class="form-control line-price-input" min="0" step="0.01" value="0" oninput="syncBilling()" />
+                          </td>
+                          <td class="bill-action">
+                            <button type="button" class="btn-logout" title="Remove item" onclick="removeBillRow(this)" style="opacity:1;visibility:visible;pointer-events:auto;">
+                              <i class="fas fa-trash-alt"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      <% }); %>
+                    <% } else { %>
+                      <tr id="emptyBillingRow">
+                        <td colspan="4" class="empty-items">No tests or profiles selected on the registration page.</td>
+                      </tr>
+                    <% } %>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="billing-bottom">
+                <div class="bill-panel">
+                  <div class="bill-panel-title">Discount & Charges</div>
+                  <div class="bill-inline-grid">
+                    <div class="form-group">
+                      <label class="form-label">Discount %</label>
+                      <input type="number" id="discountPercent" class="form-control" min="0" step="0.01" value="0" oninput="syncDiscountPercent()" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Discount Amount</label>
+                      <input type="number" name="discountAmount" id="discountAmount" class="form-control" min="0" step="0.01" value="0" oninput="syncBilling('amount')" />
+                    </div>
+                    <div class="form-group full">
+                      <label class="form-label">Visiting Charges</label>
+                      <input type="number" name="visitingCharges" id="visitingCharges" class="form-control" min="0" step="0.01" value="0" oninput="syncBilling()" />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bill-panel">
+                  <div class="bill-panel-title">Payment</div>
+                  <label class="due-toggle">
+                    <input type="checkbox" id="duePaymentToggle" onchange="toggleDuePayment()" />
+                    <span>Due Payment</span>
+                  </label>
+                  <div class="form-group">
+                    <label class="form-label">Paid Amount</label>
+                    <input type="number" name="paidAmount" id="paidAmount" class="form-control" min="0" step="0.01" value="0" oninput="syncBilling()" />
+                  </div>
+                  <div class="bill-total-list" style="margin-top:14px;">
+                    <div class="bill-total-row">
+                      <span>Amount</span>
+                      <span class="bill-total-value" id="dispAmount">Rs 0.00</span>
+                    </div>
+                    <div class="bill-total-row">
+                      <span>Discount</span>
+                      <span class="bill-total-value" id="dispDiscount">Rs 0.00</span>
+                    </div>
+                    <div class="bill-total-row">
+                      <strong>Total Amount</strong>
+                      <strong class="bill-total-value" id="dispTotalAmount">Rs 0.00</strong>
+                    </div>
+                    <div class="bill-total-row">
+                      <span>Due Amount</span>
+                      <span class="bill-total-value due" id="dispDueAmount">Rs 0.00</span>
+                    </div>
+                  </div>
+                  <input type="hidden" name="balanceAmount" id="balanceAmount" value="0" />
+                </div>
+
+                <div class="bill-panel">
+                  <div class="bill-panel-title">Payment Method</div>
+                  <div class="pay-modes">
+                    <% paymentModes.forEach(function(pm, index) { %>
+                      <button type="button" class="pay-mode-btn" data-id="<%= pm.PayModeID %>" data-name="<%= pm.PaymentMode %>" onclick="selectPaymentMode(this)">
+                        <%= pm.PaymentMode %>
+                      </button>
                     <% }); %>
-                  <% } %>
-                </select>
+                  </div>
+                </div>
               </div>
-
-              <div class="form-group">
-                <label class="form-label">Gross Amount (₹)</label>
-                <input type="number" name="grossAmount" id="grossAmount"
-                  class="form-control" step="0.01" min="0" value="0" oninput="calcAmounts()" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Visiting Charges (₹)</label>
-                <input type="number" name="visitingCharges" id="visitingCharges"
-                  class="form-control" step="0.01" min="0" value="0" oninput="calcAmounts()" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Discount (₹)</label>
-                <input type="number" name="discountAmount" id="discountAmount"
-                  class="form-control" step="0.01" min="0" value="0" oninput="calcAmounts()" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Paid Amount (₹)</label>
-                <input type="number" name="paidAmount" id="paidAmount"
-                  class="form-control" step="0.01" min="0" value="0" oninput="calcAmounts()" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Balance Amount</label>
-                <input type="number" name="balanceAmount" id="balanceAmount"
-                  class="form-control" readonly value="0"
-                  style="background:var(--gray-50);font-weight:700;color:var(--amber-600);" />
-              </div>
-
-            </div>
-
-            <!-- Receipt summary -->
-            <div class="receipt-box">
-              <div class="receipt-line">
-                <span class="rl-label">Gross + Visiting Charges</span>
-                <span class="rl-value" id="dispTotal">₹ 0.00</span>
-              </div>
-              <div class="receipt-line">
-                <span class="rl-label">Discount</span>
-                <span class="rl-value" id="dispDiscount" style="color:var(--red-500);">- ₹ 0.00</span>
-              </div>
-              <div class="receipt-line total">
-                <span class="rl-label">Net Amount</span>
-                <span class="rl-value" id="dispNet">₹ 0.00</span>
-              </div>
-              <div class="receipt-line">
-                <span class="rl-label">Paid</span>
-                <span class="rl-value" id="dispPaid">₹ 0.00</span>
-              </div>
-              <div class="receipt-line balance">
-                <span class="rl-label" style="font-weight:700;">Balance Due</span>
-                <span class="rl-value" id="dispBalance">₹ 0.00</span>
-              </div>
-            </div>
-
+            </section>
           </div>
 
-          <div class="card-footer" style="justify-content:flex-end;gap:12px;">
+          <div class="bill-footer">
             <a href="/register" class="btn btn-secondary">
               <i class="fas fa-arrow-left"></i> Back
             </a>
             <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
-              <i class="fas fa-check-circle"></i> Submit Registration
+              <i class="fas fa-file-invoice"></i> Register and Print Bill
             </button>
           </div>
         </div>
-
       </form>
-
     </main>
   </div>
 </div>
 
 <script src="/js/main.js"></script>
 <script>
-  var paymentModeSelect = document.querySelector('select[name="paymentMode"]');
-  if (paymentModeSelect) {
-    paymentModeSelect.addEventListener('change', function() {
-      var label = this.options[this.selectedIndex] ? this.options[this.selectedIndex].text : '';
-      document.getElementById('paymentModeName').value = label === 'Select payment mode' ? '' : label;
+  function formatMoney(value) {
+    return 'Rs ' + value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function getLineTotal() {
+    var total = 0;
+    document.querySelectorAll('.line-price-input').forEach(function(input) {
+      total += parseFloat(input.value) || 0;
     });
+    return total;
   }
 
-  function calcAmounts() {
-    var gross    = parseFloat(document.getElementById('grossAmount').value)    || 0;
+  function syncDiscountPercent() {
+    var lineTotal = getLineTotal();
     var visiting = parseFloat(document.getElementById('visitingCharges').value) || 0;
-    var discount = parseFloat(document.getElementById('discountAmount').value)  || 0;
-    var paid     = parseFloat(document.getElementById('paidAmount').value)      || 0;
-
-    var total   = gross + visiting;
-    var net     = Math.max(0, total - discount);
-    var balance = Math.max(0, net - paid);
-
-    function fmt(v) {
-      return '₹ ' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    document.getElementById('balanceAmount').value     = balance.toFixed(2);
-    document.getElementById('dispTotal').textContent   = fmt(total);
-    document.getElementById('dispDiscount').textContent = '- ' + fmt(discount);
-    document.getElementById('dispNet').textContent     = fmt(net);
-    document.getElementById('dispPaid').textContent    = fmt(paid);
-    document.getElementById('dispBalance').textContent = fmt(balance);
-
-    var balEl = document.getElementById('dispBalance');
-    balEl.style.color = balance > 0 ? 'var(--amber-600)' : 'var(--green-600)';
-
-    var balInput = document.getElementById('balanceAmount');
-    balInput.style.color = balance > 0 ? 'var(--amber-600)' : 'var(--green-600)';
+    var amountBeforeDiscount = lineTotal + visiting;
+    var percent = parseFloat(document.getElementById('discountPercent').value) || 0;
+    var discountAmount = amountBeforeDiscount * (percent / 100);
+    document.getElementById('discountAmount').value = discountAmount.toFixed(2);
+    syncBilling('percent');
   }
 
-  // Show loading on submit
-  document.getElementById('finalForm').addEventListener('submit', function() {
-    if (paymentModeSelect) {
-      var label = paymentModeSelect.options[paymentModeSelect.selectedIndex] ? paymentModeSelect.options[paymentModeSelect.selectedIndex].text : '';
-      document.getElementById('paymentModeName').value = label === 'Select payment mode' ? '' : label;
+  function syncBilling(source) {
+    var lineTotal = getLineTotal();
+    var visiting = parseFloat(document.getElementById('visitingCharges').value) || 0;
+    var discountInput = document.getElementById('discountAmount');
+    var discount = parseFloat(discountInput.value) || 0;
+    var amountBeforeDiscount = lineTotal + visiting;
+
+    if (source !== 'percent' && amountBeforeDiscount > 0) {
+      document.getElementById('discountPercent').value = ((discount / amountBeforeDiscount) * 100).toFixed(2);
     }
+
+    discount = Math.min(discount, amountBeforeDiscount);
+    discountInput.value = discount.toFixed(2);
+
+    var totalAmount = Math.max(0, amountBeforeDiscount - discount);
+    var dueToggle = document.getElementById('duePaymentToggle');
+    var paidInput = document.getElementById('paidAmount');
+    var paid = parseFloat(paidInput.value) || 0;
+
+    if (!dueToggle.checked && (source !== 'amount' && source !== 'percent')) {
+      paid = totalAmount;
+      paidInput.value = totalAmount.toFixed(2);
+    }
+
+    if (paid > totalAmount) {
+      paid = totalAmount;
+      paidInput.value = totalAmount.toFixed(2);
+    }
+
+    var due = Math.max(0, totalAmount - paid);
+
+    document.getElementById('grossAmount').value = lineTotal.toFixed(2);
+    document.getElementById('balanceAmount').value = due.toFixed(2);
+    document.getElementById('dispAmount').textContent = formatMoney(amountBeforeDiscount);
+    document.getElementById('dispDiscount').textContent = formatMoney(discount);
+    document.getElementById('dispTotalAmount').textContent = formatMoney(totalAmount);
+    document.getElementById('dispDueAmount').textContent = formatMoney(due);
+  }
+
+  function toggleDuePayment() {
+    var dueToggle = document.getElementById('duePaymentToggle');
+    var paidInput = document.getElementById('paidAmount');
+    if (!dueToggle.checked) {
+      paidInput.readOnly = true;
+      paidInput.style.background = 'var(--gray-50)';
+    } else {
+      paidInput.readOnly = false;
+      paidInput.style.background = 'var(--white)';
+    }
+    syncBilling();
+  }
+
+  function removeBillRow(button) {
+    var row = button.closest('tr');
+    if (row) row.remove();
+
+    var rows = document.querySelectorAll('.bill-item-row');
+    rows.forEach(function(itemRow, index) {
+      itemRow.dataset.index = index;
+      var noCell = itemRow.querySelector('.bill-row-no');
+      if (noCell) noCell.textContent = index + 1;
+    });
+
+    if (!rows.length) {
+      document.getElementById('billingItemTable').innerHTML = '<tr id="emptyBillingRow"><td colspan="4" class="empty-items">No billing items left. Go back and add tests or profiles.</td></tr>';
+    }
+
+    syncBilling();
+  }
+
+  function selectPaymentMode(button) {
+    document.querySelectorAll('.pay-mode-btn').forEach(function(btn) {
+      btn.classList.remove('active');
+    });
+    button.classList.add('active');
+    document.getElementById('paymentModeInput').value = button.dataset.id;
+    document.getElementById('paymentModeName').value = button.dataset.name;
+  }
+
+  document.getElementById('finalForm').addEventListener('submit', function(e) {
+    if (!document.getElementById('paymentModeInput').value) {
+      e.preventDefault();
+      showToast('Please select a payment method', 'error');
+      return false;
+    }
+
     var btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Saving...';
   });
+
+  (function initBilling() {
+    var firstPayBtn = document.querySelector('.pay-mode-btn');
+    if (firstPayBtn) selectPaymentMode(firstPayBtn);
+    toggleDuePayment();
+    syncBilling();
+  })();
 </script>
 </body>
 </html>

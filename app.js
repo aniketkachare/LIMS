@@ -184,6 +184,11 @@ function splitNames(value) {
   return String(value).split(',').map(v => v.trim()).filter(Boolean);
 }
 
+function getCurrentUserId(req) {
+  const user = req.session?.user || {};
+  return user.UserID || user.UserId || user.userID || user.userId || null;
+}
+
 async function loadResultEntryPatientList(pool, fromDate, toDate) {
   try {
     let accessionResult;
@@ -237,9 +242,6 @@ async function loadResultEntryPatientList(pool, fromDate, toDate) {
 
 async function getInvoiceData(req, visitID) {
   const sessionInvoice = req.session.lastRegistration;
-  if (sessionInvoice && String(sessionInvoice.visitID) === String(visitID)) {
-    return sessionInvoice;
-  }
 
   const pool = await mssql.connect(config);
   const visitResult = await pool.request()
@@ -324,7 +326,9 @@ async function getInvoiceData(req, visitID) {
             WHEN vt.ProfileTestsID IS NOT NULL THEN 'Profile'
             ELSE 'Item'
           END AS ItemType,
-          COALESCE(mt.TestName, mp.ProfileName) AS ItemName
+          COALESCE(mt.TestName, mp.ProfileName) AS ItemName,
+          ISNULL(vt.TestPrice, 0) AS ItemAmount,
+          ISNULL(vt.DiscountAmount, 0) AS ItemDiscountAmount
         FROM Visit_Trans vt
         LEFT JOIN Mst_Test mt ON mt.TestID = vt.TestID
         LEFT JOIN Mst_Profiles mp ON mp.ProfileID = vt.ProfileTestsID
@@ -335,7 +339,8 @@ async function getInvoiceData(req, visitID) {
       .filter(item => item.ItemName)
       .map(item => ({
         type: item.ItemType,
-        name: item.ItemName
+        name: item.ItemName,
+        amount: Math.max(0, Number(item.ItemAmount || 0) - Number(item.ItemDiscountAmount || 0))
       }));
   } catch (err) {
     console.error('Invoice items lookup error:', {
@@ -355,9 +360,11 @@ async function getInvoiceData(req, visitID) {
     ageType,
     mobileNumber,
     paymentModeName,
-    centerName: '',
-    referName: '',
-    doctorName: '',
+    centerName: sessionInvoice && String(sessionInvoice.visitID) === String(visitID) ? (sessionInvoice.centerName || '') : '',
+    referName: sessionInvoice && String(sessionInvoice.visitID) === String(visitID) ? (sessionInvoice.referName || '') : '',
+    doctorName: sessionInvoice && String(sessionInvoice.visitID) === String(visitID) ? (sessionInvoice.doctorName || '') : '',
+    centerAddress: sessionInvoice && String(sessionInvoice.visitID) === String(visitID) ? (sessionInvoice.centerAddress || '') : '',
+    centerPhone: sessionInvoice && String(sessionInvoice.visitID) === String(visitID) ? (sessionInvoice.centerPhone || '') : '',
     selectedItems,
     grossAmount: Number(row.GrossAmount || 0),
     visitingCharges: Number(row.VisitingCharges || 0),
@@ -732,6 +739,204 @@ app.get('/suggest-doctor-names', requireAuth, async (req, res) => {
       .query('SELECT DoctorID, DoctorName FROM Mst_Doctor WHERE LOWER(LTRIM(RTRIM(DoctorName))) LIKE @query');
     res.json(result.recordset);
   } catch (err) { res.json([]); }
+});
+
+app.post('/api/master/center', requireAuth, async (req, res) => {
+  const centerName = String(req.body.centerName || '').trim();
+  const centerShortName = String(req.body.centerShortName || '').trim();
+  const address = String(req.body.address || '').trim();
+  const mobileNumber = String(req.body.mobileNumber || '').trim();
+  const emailId = String(req.body.emailId || '').trim();
+
+  if (!centerName) {
+    return res.status(400).json({ success: false, message: 'Center / Lab name is required.' });
+  }
+
+  try {
+    const pool = await mssql.connect(config);
+    const existing = await pool.request()
+      .input('centerName', mssql.NVarChar, centerName)
+      .query(`
+        SELECT TOP 1 CenterID, CenterName
+        FROM Mst_Centers
+        WHERE LOWER(LTRIM(RTRIM(CenterName))) = LOWER(LTRIM(RTRIM(@centerName)))
+      `);
+
+    if (existing.recordset.length) {
+      return res.json({ success: true, item: existing.recordset[0], existing: true });
+    }
+
+    const createdBy = getCurrentUserId(req);
+    const inserted = await pool.request()
+      .input('centerName', mssql.NVarChar, centerName)
+      .input('centerShortName', mssql.NVarChar, centerShortName || null)
+      .input('address', mssql.NVarChar, address || null)
+      .input('mobileNumber', mssql.VarChar, mobileNumber || null)
+      .input('emailId', mssql.VarChar, emailId || null)
+      .input('createdBy', mssql.Int, createdBy)
+      .query(`
+        INSERT INTO Mst_Centers (
+          CenterName,
+          Address,
+          CenterShortName,
+          CreationDateTime,
+          CreationUID,
+          MobileNumber,
+          Emailid,
+          ActiveFlag
+        )
+        OUTPUT INSERTED.CenterID, INSERTED.CenterName
+        VALUES (
+          @centerName,
+          @address,
+          @centerShortName,
+          GETDATE(),
+          @createdBy,
+          @mobileNumber,
+          @emailId,
+          1
+        )
+      `);
+
+    res.json({ success: true, item: inserted.recordset[0] });
+  } catch (err) {
+    console.error('Create center error:', {
+      body: req.body,
+      message: err.message,
+      stack: err.stack
+    });
+    res.status(500).json({ success: false, message: 'Failed to add Center / Lab.' });
+  }
+});
+
+app.post('/api/master/refer', requireAuth, async (req, res) => {
+  const referName = String(req.body.referName || '').trim();
+  const mobileNo = String(req.body.mobileNo || '').trim();
+  const emailId = String(req.body.emailId || '').trim();
+  const referAddress = String(req.body.referAddress || '').trim();
+
+  if (!referName) {
+    return res.status(400).json({ success: false, message: 'Referred By name is required.' });
+  }
+
+  try {
+    const pool = await mssql.connect(config);
+    const existing = await pool.request()
+      .input('referName', mssql.NVarChar, referName)
+      .query(`
+        SELECT TOP 1 ReferID, ReferName
+        FROM Mst_Refer
+        WHERE LOWER(LTRIM(RTRIM(ReferName))) = LOWER(LTRIM(RTRIM(@referName)))
+          AND ISNULL(Deleted, 0) = 0
+      `);
+
+    if (existing.recordset.length) {
+      return res.json({ success: true, item: existing.recordset[0], existing: true });
+    }
+
+    const createdBy = getCurrentUserId(req);
+    const inserted = await pool.request()
+      .input('referName', mssql.NVarChar, referName)
+      .input('mobileNo', mssql.NVarChar, mobileNo || null)
+      .input('emailId', mssql.NVarChar, emailId || null)
+      .input('referAddress', mssql.NVarChar, referAddress || null)
+      .input('createdBy', mssql.Int, createdBy)
+      .query(`
+        INSERT INTO Mst_Refer (
+          ReferName,
+          CreatedDate,
+          CreatedByUserID,
+          MobileNo,
+          EmailId,
+          Deleted,
+          ReferAddress
+        )
+        OUTPUT INSERTED.ReferID, INSERTED.ReferName
+        VALUES (
+          @referName,
+          GETDATE(),
+          @createdBy,
+          @mobileNo,
+          @emailId,
+          0,
+          @referAddress
+        )
+      `);
+
+    res.json({ success: true, item: inserted.recordset[0] });
+  } catch (err) {
+    console.error('Create refer error:', {
+      body: req.body,
+      message: err.message,
+      stack: err.stack
+    });
+    res.status(500).json({ success: false, message: 'Failed to add Referred By.' });
+  }
+});
+
+app.post('/api/master/doctor', requireAuth, async (req, res) => {
+  const doctorName = String(req.body.doctorName || '').trim();
+  const mobileNo = String(req.body.mobileNo || '').trim();
+  const emailId = String(req.body.emailId || '').trim();
+  const centerId = parseInt(req.body.centerId, 10) || null;
+
+  if (!doctorName) {
+    return res.status(400).json({ success: false, message: 'Doctor name is required.' });
+  }
+
+  try {
+    const pool = await mssql.connect(config);
+    const existing = await pool.request()
+      .input('doctorName', mssql.NVarChar, doctorName)
+      .query(`
+        SELECT TOP 1 DoctorID, DoctorName
+        FROM Mst_Doctor
+        WHERE LOWER(LTRIM(RTRIM(DoctorName))) = LOWER(LTRIM(RTRIM(@doctorName)))
+          AND ISNULL(Deleted, 0) = 0
+      `);
+
+    if (existing.recordset.length) {
+      return res.json({ success: true, item: existing.recordset[0], existing: true });
+    }
+
+    const createdBy = getCurrentUserId(req);
+    const inserted = await pool.request()
+      .input('doctorName', mssql.NVarChar, doctorName)
+      .input('mobileNo', mssql.VarChar, mobileNo || null)
+      .input('emailId', mssql.VarChar, emailId || null)
+      .input('createdBy', mssql.Int, createdBy)
+      .input('centerId', mssql.Int, centerId)
+      .query(`
+        INSERT INTO Mst_Doctor (
+          DoctorName,
+          MobileNo,
+          EmailId,
+          CreatedDate,
+          CreatedByUserID,
+          Deleted,
+          CenterId
+        )
+        OUTPUT INSERTED.DoctorID, INSERTED.DoctorName
+        VALUES (
+          @doctorName,
+          @mobileNo,
+          @emailId,
+          GETDATE(),
+          @createdBy,
+          0,
+          @centerId
+        )
+      `);
+
+    res.json({ success: true, item: inserted.recordset[0] });
+  } catch (err) {
+    console.error('Create doctor error:', {
+      body: req.body,
+      message: err.message,
+      stack: err.stack
+    });
+    res.status(500).json({ success: false, message: 'Failed to add Doctor.' });
+  }
 });
 
 app.get('/suggest-tests-profiles', requireAuth, async (req, res) => {
@@ -1347,27 +1552,51 @@ app.get('/Barcodeprinting/print/:visitCode', requireAuth, async (req, res) => {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 app.get('/dashboard', requireAuth, async (req, res) => {
+  const { fromDate, toDate } = req.query;
+  const defaultFromDate = fromDate || formatDDMMYYYY(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000));
+  const defaultToDate = toDate || formatDDMMYYYY(new Date());
+  const trendStart = parseDDMMYYYY(defaultFromDate) || defaultFromDate;
+  const trendEnd = parseDDMMYYYY(defaultToDate) || defaultToDate;
   try {
     const pool = await mssql.connect(config);
 
     // Today's date
     const today = new Date().toISOString().split('T')[0];
 
-    // Total patients today
-    const todayPatients = await pool.request()
-      .query(`SELECT COUNT(*) AS count FROM Visit WHERE CAST(VisitDateTime AS DATE) = '${today}'`);
+    const [todayPatients, totalPatients, pendingCollection, completedToday, trendResult] = await Promise.all([
+      pool.request().query(`SELECT COUNT(*) AS count FROM Visit WHERE CAST(VisitDateTime AS DATE) = '${today}'`),
+      pool.request().query(`SELECT COUNT(*) AS count FROM Visit_patient`),
+      pool.request().query(`SELECT COUNT(*) AS count FROM Visit_Trans WHERE TestWiseStatus = 1`),
+      pool.request().query(`SELECT COUNT(*) AS count FROM Visit_Trans WHERE TestWiseStatus >= 3 AND CAST(CreatedDate AS DATE) = '${today}'`),
+      pool.request()
+        .input('FromDate', mssql.Date, trendStart)
+        .input('ToDate', mssql.Date, trendEnd)
+        .query(`
+          SELECT
+            CAST(VisitDateTime AS DATE) AS VisitDate,
+            COUNT(*) AS PatientCount
+          FROM Visit
+          WHERE CAST(VisitDateTime AS DATE) BETWEEN @FromDate AND @ToDate
+          GROUP BY CAST(VisitDateTime AS DATE)
+          ORDER BY CAST(VisitDateTime AS DATE)
+        `)
+    ]);
 
-    // Total patients overall
-    const totalPatients = await pool.request()
-      .query(`SELECT COUNT(*) AS count FROM Visit_patient`);
-
-    // Pending collection
-    const pendingCollection = await pool.request()
-      .query(`SELECT COUNT(*) AS count FROM Visit_Trans WHERE TestWiseStatus = 1`);
-
-    // Completed today
-    const completedToday = await pool.request()
-      .query(`SELECT COUNT(*) AS count FROM Visit_Trans WHERE TestWiseStatus >= 3 AND CAST(CreatedDate AS DATE) = '${today}'`);
+    const trendMap = new Map(
+      (trendResult.recordset || []).map(row => [formatDDMMYYYY(row.VisitDate), Number(row.PatientCount || 0)])
+    );
+    const patientTrend = [];
+    const iterDate = new Date(trendStart);
+    const lastDate = new Date(trendEnd);
+    while (iterDate <= lastDate) {
+      const d = new Date(iterDate);
+      const label = formatDDMMYYYY(d);
+      patientTrend.push({
+        label,
+        count: trendMap.get(label) || 0
+      });
+      iterDate.setDate(iterDate.getDate() + 1);
+    }
 
     res.render('dashboard', {
       user: req.session.user,
@@ -1376,13 +1605,155 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         totalPatients:    totalPatients.recordset[0].count    || 0,
         pendingCollection: pendingCollection.recordset[0].count || 0,
         completedToday:   completedToday.recordset[0].count   || 0,
-      }
+      },
+      patientTrend,
+      fromDate: defaultFromDate,
+      toDate: defaultToDate
     });
   } catch (err) {
     // If queries fail, still show dashboard with zeros
     res.render('dashboard', {
       user: req.session.user,
-      stats: { todayPatients: 0, totalPatients: 0, pendingCollection: 0, completedToday: 0 }
+      stats: { todayPatients: 0, totalPatients: 0, pendingCollection: 0, completedToday: 0 },
+      patientTrend: [],
+      fromDate: defaultFromDate,
+      toDate: defaultToDate
+    });
+  }
+});
+
+app.get('/financial-analysis', requireAuth, async (req, res) => {
+  const { fromDate, toDate } = req.query;
+  const defaultFrom = fromDate || formatDDMMYYYY(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000));
+  const defaultTo = toDate || formatDDMMYYYY(new Date());
+  const sqlFrom = parseDDMMYYYY(defaultFrom) || defaultFrom;
+  const sqlTo = parseDDMMYYYY(defaultTo) || defaultTo;
+
+  try {
+    const pool = await mssql.connect(config);
+
+    const [summaryResult, dailyResult, paymentModeResult, dueResult] = await Promise.all([
+      pool.request()
+        .input('FromDate', mssql.Date, sqlFrom)
+        .input('ToDate', mssql.Date, sqlTo)
+        .query(`
+          SELECT
+            COUNT(*) AS VisitCount,
+            ISNULL(SUM(Gross), 0) AS GrossAmount,
+            ISNULL(SUM(DiscountAmount), 0) AS DiscountAmount,
+            ISNULL(SUM(Net), 0) AS NetAmount,
+            ISNULL(SUM(AmountPaid), 0) AS PaidAmount,
+            ISNULL(SUM(BalanceAmt), 0) AS BalanceAmount,
+            ISNULL(SUM(VisitingCharges), 0) AS VisitingCharges
+          FROM Visit
+          WHERE CAST(VisitDateTime AS DATE) BETWEEN @FromDate AND @ToDate
+        `),
+      pool.request()
+        .input('FromDate', mssql.Date, sqlFrom)
+        .input('ToDate', mssql.Date, sqlTo)
+        .query(`
+          SELECT
+            CAST(VisitDateTime AS DATE) AS VisitDate,
+            COUNT(*) AS VisitCount,
+            ISNULL(SUM(Net), 0) AS NetAmount,
+            ISNULL(SUM(AmountPaid), 0) AS PaidAmount,
+            ISNULL(SUM(BalanceAmt), 0) AS BalanceAmount
+          FROM Visit
+          WHERE CAST(VisitDateTime AS DATE) BETWEEN @FromDate AND @ToDate
+          GROUP BY CAST(VisitDateTime AS DATE)
+          ORDER BY CAST(VisitDateTime AS DATE)
+        `),
+      pool.request()
+        .input('FromDate', mssql.Date, sqlFrom)
+        .input('ToDate', mssql.Date, sqlTo)
+        .query(`
+          SELECT
+            ISNULL(pm.PaymentMode, 'Unknown') AS PaymentMode,
+            COUNT(*) AS VisitCount,
+            ISNULL(SUM(v.AmountPaid), 0) AS PaidAmount,
+            ISNULL(SUM(v.Net), 0) AS NetAmount
+          FROM Visit v
+          LEFT JOIN Mst_Paymentmode pm ON pm.PayModeID = v.PaymentMode
+          WHERE CAST(v.VisitDateTime AS DATE) BETWEEN @FromDate AND @ToDate
+          GROUP BY pm.PaymentMode
+          ORDER BY PaidAmount DESC, VisitCount DESC
+        `),
+      pool.request()
+        .input('FromDate', mssql.Date, sqlFrom)
+        .input('ToDate', mssql.Date, sqlTo)
+        .query(`
+          SELECT TOP 8
+            v.VisitCode,
+            v.VisitDateTime,
+            vp.PatientName,
+            ISNULL(v.Net, 0) AS NetAmount,
+            ISNULL(v.AmountPaid, 0) AS PaidAmount,
+            ISNULL(v.BalanceAmt, 0) AS BalanceAmount
+          FROM Visit v
+          LEFT JOIN Visit_patient vp ON vp.PatientID = v.PatientID
+          WHERE CAST(v.VisitDateTime AS DATE) BETWEEN @FromDate AND @ToDate
+            AND ISNULL(v.BalanceAmt, 0) > 0
+          ORDER BY ISNULL(v.BalanceAmt, 0) DESC, v.VisitDateTime DESC
+        `)
+    ]);
+
+    const summary = summaryResult.recordset[0] || {
+      VisitCount: 0,
+      GrossAmount: 0,
+      DiscountAmount: 0,
+      NetAmount: 0,
+      PaidAmount: 0,
+      BalanceAmount: 0,
+      VisitingCharges: 0
+    };
+
+    const daily = (dailyResult.recordset || []).map(row => ({
+      ...row,
+      VisitDateLabel: formatDDMMYYYY(row.VisitDate)
+    }));
+    const maxDailyNet = daily.reduce((max, row) => Math.max(max, Number(row.NetAmount || 0)), 0) || 1;
+    const paymentModes = paymentModeResult.recordset || [];
+    const totalPaidForModes = paymentModes.reduce((sum, row) => sum + Number(row.PaidAmount || 0), 0) || 1;
+    const dueVisits = (dueResult.recordset || []).map(row => ({
+      ...row,
+      VisitDateLabel: formatReportDate(row.VisitDateTime)
+    }));
+
+    res.render('financial-analysis', {
+      user: req.session.user,
+      fromDate: defaultFrom,
+      toDate: defaultTo,
+      summary,
+      daily,
+      maxDailyNet,
+      paymentModes,
+      totalPaidForModes,
+      dueVisits
+    });
+  } catch (err) {
+    console.error('Financial analysis error:', {
+      query: req.query,
+      message: err.message,
+      stack: err.stack
+    });
+    res.render('financial-analysis', {
+      user: req.session.user,
+      fromDate: defaultFrom,
+      toDate: defaultTo,
+      summary: {
+        VisitCount: 0,
+        GrossAmount: 0,
+        DiscountAmount: 0,
+        NetAmount: 0,
+        PaidAmount: 0,
+        BalanceAmount: 0,
+        VisitingCharges: 0
+      },
+      daily: [],
+      maxDailyNet: 1,
+      paymentModes: [],
+      totalPaidForModes: 1,
+      dueVisits: []
     });
   }
 });

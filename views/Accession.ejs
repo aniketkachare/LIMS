@@ -8,6 +8,42 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .action-buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .action-btn {
+      border: 1px solid var(--gray-200);
+      background: var(--white);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .action-btn.done {
+      color: var(--green-700);
+      border-color: var(--green-100);
+      background: var(--green-50);
+    }
+    .action-btn.reject {
+      color: var(--red-600);
+      border-color: var(--red-100);
+      background: var(--red-50);
+    }
+    .action-btn.hold {
+      color: var(--amber-700);
+      border-color: var(--amber-100);
+      background: var(--amber-50);
+    }
+    .action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+  </style>
 </head>
 <body>
 <div class="app-shell">
@@ -128,13 +164,11 @@
                     </span>
                   </td>
                   <td>
-                    <select class="form-control" style="width:150px;font-size:0.78rem;padding:5px 8px;"
-                      onchange="updateAction(this, '<%= row.VisitTransID %>', '<%= row.TestID %>')">
-                      <option value="">— Action —</option>
-                      <option value="6">Accession Done</option>
-                      <option value="7">Accession Reject</option>
-                      <option value="8">Accession Hold</option>
-                    </select>
+                    <div class="action-buttons">
+                      <button type="button" class="action-btn done" onclick="updateAction(6, '<%= row.VisitTransID %>', '<%= row.TestID %>', this)">Accepted</button>
+                      <button type="button" class="action-btn reject" onclick="updateAction(7, '<%= row.VisitTransID %>', '<%= row.TestID %>', this)">Reject</button>
+                      <button type="button" class="action-btn hold" onclick="updateAction(8, '<%= row.VisitTransID %>', '<%= row.TestID %>', this)">Hold</button>
+                    </div>
                   </td>
                 </tr>
                 <% }); %>
@@ -171,9 +205,9 @@
         <label class="form-label">Action for <span id="selectedCount">0</span> selected rows</label>
         <select class="form-control" id="bulkActionSelect">
           <option value="">— Select Action —</option>
-          <option value="6">Accession Done</option>
-          <option value="7">Accession Reject</option>
-          <option value="8">Accession Hold</option>
+          <option value="6">Accepted</option>
+          <option value="7">Rejected</option>
+          <option value="8">Hold</option>
         </select>
       </div>
     </div>
@@ -208,9 +242,9 @@
   }
 
   // ── Action update ──
-  function updateAction(sel, visitTransID, testID) {
-    var actionID = sel.value;
+  function updateAction(actionID, visitTransID, testID, btn) {
     if (!actionID) return;
+    if (btn) btn.disabled = true;
     fetch('/update-accession-action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -221,6 +255,8 @@
         setTimeout(function() { window.location.reload(); }, 400);
       }
       else showToast('Update failed', 'error');
+    }).finally(function() {
+      if (btn) btn.disabled = false;
     });
   }
 

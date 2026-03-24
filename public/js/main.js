@@ -252,3 +252,37 @@ window._dpClear = function(inputId) {
   document.getElementById(inputId+'_picker').style.display='none';
   if(s.options.onClear) s.options.onClear();
 };
+
+// ---- Popup helpers ----
+window.openPopupWindow = function(url, options) {
+  options = options || {};
+  var width = options.width || 980;
+  var height = options.height || 760;
+  var left = Math.max(0, Math.floor((window.screen.width - width) / 2));
+  var top = Math.max(0, Math.floor((window.screen.height - height) / 2));
+  var features = [
+    'popup=yes',
+    'toolbar=no',
+    'location=no',
+    'status=no',
+    'menubar=no',
+    'scrollbars=yes',
+    'resizable=yes',
+    'width=' + width,
+    'height=' + height,
+    'left=' + left,
+    'top=' + top
+  ].join(',');
+  var popup = window.open(url, options.name || 'lims_popup', features);
+  if (popup) popup.focus();
+  return !!popup;
+};
+
+window.openInvoicePopup = function(url, printMode) {
+  window.openPopupWindow(url, {
+    name: printMode ? 'lims_invoice_print' : 'lims_invoice_preview',
+    width: printMode ? 1100 : 980,
+    height: printMode ? 820 : 760
+  });
+  return false;
+};
